@@ -29,6 +29,7 @@ export default function AdminDashboardPage() {
   const [endDate, setEndDate] = useState('');
   const [analytics, setAnalytics] = useState<any>(null);
   const [recentOrders, setRecentOrders] = useState<Order[]>([]);
+  const [lowStockCount, setLowStockCount] = useState<number>(0);
   const [loading, setLoading] = useState(true);
 
   const fetchOverview = async () => {
@@ -38,11 +39,21 @@ export default function AdminDashboardPage() {
       if (dateRange === 'custom' && startDate && endDate) {
         url += `&startDate=${startDate}&endDate=${endDate}`;
       }
-      const res = await fetch(url);
-      const data = await res.json();
+      const [ovRes, invRes] = await Promise.all([
+        fetch(url),
+        fetch('/api/admin/inventory').catch(() => null),
+      ]);
+      const data = await ovRes.json();
       if (data.success) {
         setAnalytics(data.analytics);
         setRecentOrders(data.recentOrders || []);
+      }
+      if (invRes) {
+        const invData = await invRes.json();
+        if (invData.success && invData.items) {
+          const low = invData.items.filter((it: any) => it.current_stock <= it.min_threshold);
+          setLowStockCount(low.length);
+        }
       }
     } catch (e) {
       console.warn('Failed to load overview data', e);
@@ -154,6 +165,29 @@ export default function AdminDashboardPage() {
           </button>
         </div>
       </div>
+
+      {/* Low Stock Operational Warning */}
+      {lowStockCount > 0 && (
+        <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-xs">
+          <div className="flex items-center gap-2.5">
+            <AlertCircle className="w-5 h-5 text-amber-700 shrink-0" />
+            <div>
+              <span className="font-black text-amber-900 block">
+                {lowStockCount} Inventory {lowStockCount === 1 ? 'Item is' : 'Items are'} Below Safety Reorder Threshold
+              </span>
+              <span className="text-amber-700">
+                Key kitchen ingredients require purchasing to prevent stockouts during peak shifts.
+              </span>
+            </div>
+          </div>
+          <Link
+            href="/admin/inventory"
+            className="px-4 py-2 rounded-xl bg-amber-700 hover:bg-amber-800 text-white font-bold text-xs shadow-xs transition self-start sm:self-auto shrink-0"
+          >
+            Manage Inventory &rarr;
+          </Link>
+        </div>
+      )}
 
       {/* KPI Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">

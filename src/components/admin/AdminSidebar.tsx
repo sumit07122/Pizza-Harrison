@@ -6,17 +6,10 @@ import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard,
   UtensilsCrossed,
-  ChefHat,
-  CalendarCheck,
+  Package,
   Pizza,
-  FolderTree,
-  Tag,
-  Users,
   BarChart3,
-  UserCog,
-  Star,
   Settings,
-  ClipboardList,
   Store,
   ChevronLeft,
   ChevronRight,
@@ -39,35 +32,13 @@ export function AdminSidebar({
 }: AdminSidebarProps) {
   const pathname = usePathname();
 
-  const navSections = [
-    {
-      title: 'Operations',
-      items: [
-        { label: 'Overview', href: '/admin', icon: LayoutDashboard },
-        { label: 'Order Processing', href: '/admin/orders', icon: UtensilsCrossed },
-        { label: 'Kitchen Display (KDS)', href: '/admin/kitchen', icon: ChefHat },
-        { label: 'Table Bookings', href: '/admin/bookings', icon: CalendarCheck },
-      ],
-    },
-    {
-      title: 'Catalog & Growth',
-      items: [
-        { label: 'Menu & Prices', href: '/admin/menu', icon: Pizza },
-        { label: 'Categories', href: '/admin/categories', icon: FolderTree },
-        { label: 'Coupons & Promos', href: '/admin/coupons', icon: Tag },
-        { label: 'Customer Directory', href: '/admin/customers', icon: Users },
-        { label: 'Reviews Moderation', href: '/admin/reviews', icon: Star },
-      ],
-    },
-    {
-      title: 'Governance & Settings',
-      items: [
-        { label: 'Analytics & Reports', href: '/admin/analytics', icon: BarChart3 },
-        { label: 'Staff & Roles (RBAC)', href: '/admin/staff', icon: UserCog },
-        { label: 'Restaurant Settings', href: '/admin/settings', icon: Settings },
-        { label: 'System Audit Logs', href: '/admin/audit-logs', icon: ClipboardList },
-      ],
-    },
+  const mainNavItems = [
+    { label: 'Overview', href: '/admin', icon: LayoutDashboard },
+    { label: 'Orders & Kitchen', href: '/admin/orders', icon: UtensilsCrossed },
+    { label: 'Inventory & Stock', href: '/admin/inventory', icon: Package },
+    { label: 'Menu & Offers', href: '/admin/menu', icon: Pizza },
+    { label: 'Sales & Expenses', href: '/admin/sales-expenses', icon: BarChart3 },
+    { label: 'Store Settings', href: '/admin/settings', icon: Settings },
   ];
 
   return (
@@ -116,37 +87,30 @@ export function AdminSidebar({
           </div>
 
           {/* Navigation Links */}
-          <nav className="p-3 space-y-4">
-            {navSections.map((section, sIdx) => (
-              <div key={sIdx} className="space-y-1">
-                {!collapsed && (
-                  <div className="px-3 text-[10px] uppercase font-black text-neutral-400 tracking-wider mb-1">
-                    {section.title}
-                  </div>
-                )}
-                {section.items.map((item) => {
-                  const Icon = item.icon;
-                  const isActive = pathname === item.href;
+          <nav className="p-3 space-y-1.5">
+            {mainNavItems.map((item) => {
+              const Icon = item.icon;
+              const isActive =
+                pathname === item.href ||
+                (item.href !== '/admin' && pathname.startsWith(item.href));
 
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      onClick={onClose}
-                      className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold transition ${
-                        isActive
-                          ? 'bg-primary-green text-white shadow-sm'
-                          : 'text-neutral-300 hover:bg-[#232B23] hover:text-white'
-                      } ${collapsed ? 'justify-center' : ''}`}
-                      title={collapsed ? item.label : undefined}
-                    >
-                      <Icon className="w-4 h-4 shrink-0" />
-                      {!collapsed && <span className="truncate">{item.label}</span>}
-                    </Link>
-                  );
-                })}
-              </div>
-            ))}
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={onClose}
+                  className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition ${
+                    isActive
+                      ? 'bg-primary-green text-white shadow-sm'
+                      : 'text-neutral-300 hover:bg-[#232B23] hover:text-white'
+                  } ${collapsed ? 'justify-center' : ''}`}
+                  title={collapsed ? item.label : undefined}
+                >
+                  <Icon className="w-4 h-4 shrink-0" />
+                  {!collapsed && <span className="truncate">{item.label}</span>}
+                </Link>
+              );
+            })}
           </nav>
         </div>
 

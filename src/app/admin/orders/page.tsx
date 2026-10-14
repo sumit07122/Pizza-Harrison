@@ -202,15 +202,23 @@ export default function AdminOrdersPage() {
           <div className="flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
             <h1 className="text-xl sm:text-2xl font-black text-forest font-serif">
-              Order Management System
+              Orders & Kitchen Operations
             </h1>
           </div>
           <p className="text-xs text-muted-gray mt-1">
-            Search, filter, update states, and view kitchen tickets & receipts for all {totalCount} orders.
+            Real-time order processing, kitchen prep stages, KOT tickets, and verified customer delivery dispatch.
           </p>
         </div>
 
         <div className="flex items-center gap-2">
+          <Link
+            href="/admin/kitchen"
+            className="bg-primary-green hover:bg-forest text-white text-xs font-bold px-4 py-2.5 rounded-xl flex items-center gap-1.5 shadow-sm transition"
+          >
+            <Flame className="w-4 h-4 text-amber-300" />
+            <span>Open Tablet KDS View &rarr;</span>
+          </Link>
+
           <button
             type="button"
             onClick={downloadCSV}
@@ -220,14 +228,6 @@ export default function AdminOrdersPage() {
             <Download className="w-4 h-4 text-primary-green" />
             <span>Export CSV</span>
           </button>
-
-          <Link
-            href="/admin/kitchen"
-            className="bg-primary-green hover:bg-forest text-white text-xs font-bold px-4 py-2.5 rounded-xl flex items-center gap-1.5 shadow-sm transition"
-          >
-            <Flame className="w-4 h-4" />
-            <span>Tablet KDS Mode</span>
-          </Link>
         </div>
       </div>
 

@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { AdminTopBar } from '@/components/admin/AdminTopBar';
+import { AdminProvider } from '@/lib/store/admin-context';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -10,7 +11,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [selectedBranch, setSelectedBranch] = useState('all');
 
   return (
-    <div className="min-h-screen bg-[#F6F4F0] text-charcoal flex">
+    <AdminProvider>
+      <div className="min-h-screen bg-[#F6F4F0] text-charcoal flex">
       {/* Sidebar */}
       <AdminSidebar
         isOpen={mobileMenuOpen}
@@ -36,5 +38,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </main>
       </div>
     </div>
+    </AdminProvider>
   );
 }

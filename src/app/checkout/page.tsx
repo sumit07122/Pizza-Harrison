@@ -542,6 +542,26 @@ export default function CheckoutPage() {
                     <span>{formatINR(taxPaise)}</span>
                   </div>
 
+                  {/* Loyalty Stamp Status Notification */}
+                  <div className="p-2.5 rounded-xl bg-[#FAF7F0] border border-border-warm text-[11px] space-y-1">
+                    <div className="font-bold flex items-center gap-1.5 text-forest">
+                      <span>🍕 Pizza Harrison Rewards:</span>
+                    </div>
+                    {appliedCoupon ? (
+                      <p className="text-muted-gray">
+                        Coupon code <strong>{appliedCoupon.code}</strong> applied. Promotional discounts cannot be clubbed with loyalty stamp accrual.
+                      </p>
+                    ) : subtotalPaise >= 29900 ? (
+                      <p className="text-emerald-700 font-semibold flex items-center gap-1">
+                        <span>✨ This order earns 1 Reward Stamp upon delivery! (Collect 6 for a free pizza)</span>
+                      </p>
+                    ) : (
+                      <p className="text-muted-gray">
+                        Add {formatINR(29900 - subtotalPaise)} more in food items to earn 1 Pizza Harrison Reward Stamp.
+                      </p>
+                    )}
+                  </div>
+
                   <div className="pt-3 border-t border-border-warm flex justify-between text-base font-black text-forest">
                     <span>Total Payable</span>
                     <span>{formatINR(totalPaise)}</span>

@@ -14,6 +14,12 @@ import {
   Profile,
   RestaurantSettings,
   AuditLog,
+  InventoryItem,
+  StockMovement,
+  StoreExpense,
+  LoyaltyProgramConfig,
+  LoyaltyAccount,
+  LoyaltyLedgerEntry,
 } from '../types';
 
 export const INITIAL_BRANCHES: BranchDetails[] = [
@@ -927,3 +933,309 @@ export const INITIAL_AUDIT_LOGS: AuditLog[] = [
     created_at: new Date(Date.now() - 600 * 60 * 1000).toISOString(),
   },
 ];
+
+// ==========================================
+// INITIAL INVENTORY ITEMS & STOCK DATA
+// ==========================================
+
+export const INITIAL_INVENTORY_ITEMS: InventoryItem[] = [
+  {
+    id: 'inv-1',
+    name: 'Artisan Pizza Flour (00 Grade)',
+    category: 'flour_dough',
+    unit: 'kg',
+    current_quantity: 45,
+    low_stock_threshold: 20,
+    purchase_cost_paise: 5500, // ₹55 / kg
+    supplier_name: 'Braj Agro Mills, Mathura',
+    last_purchased_date: '2026-10-12',
+    last_updated_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 'inv-2',
+    name: '100% Pure Mozzarella Block',
+    category: 'cheese_dairy',
+    unit: 'kg',
+    current_quantity: 18,
+    low_stock_threshold: 15,
+    purchase_cost_paise: 38000, // ₹380 / kg
+    supplier_name: 'Govardhan Dairy Farm, Mathura',
+    last_purchased_date: '2026-10-14',
+    last_updated_at: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 'inv-3',
+    name: 'San Marzano Style Pizza Sauce',
+    category: 'sauces',
+    unit: 'liters',
+    current_quantity: 12,
+    low_stock_threshold: 10,
+    purchase_cost_paise: 12000, // ₹120 / L
+    supplier_name: 'Heritage Italian Foods, Delhi',
+    last_purchased_date: '2026-10-10',
+    last_updated_at: new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 'inv-4',
+    name: 'Fresh Spiced Paneer Block',
+    category: 'cheese_dairy',
+    unit: 'kg',
+    current_quantity: 8,
+    low_stock_threshold: 5,
+    purchase_cost_paise: 32000, // ₹320 / kg
+    supplier_name: 'Krishna Dairy, Sonkh Road',
+    last_purchased_date: '2026-10-14',
+    last_updated_at: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 'inv-5',
+    name: 'Sweet Golden Corn Kernels',
+    category: 'vegetables',
+    unit: 'kg',
+    current_quantity: 15,
+    low_stock_threshold: 8,
+    purchase_cost_paise: 9500, // ₹95 / kg
+    supplier_name: 'Mathura Mandi Wholesale',
+    last_purchased_date: '2026-10-13',
+    last_updated_at: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 'inv-6',
+    name: 'Crisp Green Capsicum',
+    category: 'vegetables',
+    unit: 'kg',
+    current_quantity: 12,
+    low_stock_threshold: 6,
+    purchase_cost_paise: 6000, // ₹60 / kg
+    supplier_name: 'Mathura Mandi Wholesale',
+    last_purchased_date: '2026-10-14',
+    last_updated_at: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 'inv-7',
+    name: 'Black Sliced Spanish Olives',
+    category: 'vegetables',
+    unit: 'packets',
+    current_quantity: 6, // LOW STOCK ALERT
+    low_stock_threshold: 8,
+    purchase_cost_paise: 18000, // ₹180 / can
+    supplier_name: 'Metro Cash & Carry, Agra',
+    last_purchased_date: '2026-10-08',
+    last_updated_at: new Date(Date.now() - 72 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 'inv-8',
+    name: 'Corrugated Pizza Boxes 9-inch (Medium)',
+    category: 'packaging',
+    unit: 'boxes',
+    current_quantity: 140,
+    low_stock_threshold: 100,
+    purchase_cost_paise: 1200, // ₹12 / box
+    supplier_name: 'Apex Packaging, Faridabad',
+    last_purchased_date: '2026-10-11',
+    last_updated_at: new Date(Date.now() - 36 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 'inv-9',
+    name: 'Corrugated Pizza Boxes 7-inch (Regular)',
+    category: 'packaging',
+    unit: 'boxes',
+    current_quantity: 85, // LOW STOCK ALERT
+    low_stock_threshold: 100,
+    purchase_cost_paise: 900, // ₹9 / box
+    supplier_name: 'Apex Packaging, Faridabad',
+    last_purchased_date: '2026-10-09',
+    last_updated_at: new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 'inv-10',
+    name: 'Commercial LPG Cylinder 19kg',
+    category: 'utilities',
+    unit: 'pcs',
+    current_quantity: 3,
+    low_stock_threshold: 2,
+    purchase_cost_paise: 185000, // ₹1,850 / cylinder
+    supplier_name: 'Indian Oil Agency, Sonkh Road',
+    last_purchased_date: '2026-10-14',
+    last_updated_at: new Date(Date.now() - 8 * 60 * 60 * 1000).toISOString(),
+  },
+];
+
+export const INITIAL_STOCK_MOVEMENTS: StockMovement[] = [
+  {
+    id: 'sm-1',
+    item_id: 'inv-2',
+    item_name: '100% Pure Mozzarella Block',
+    movement_type: 'purchase',
+    quantity_delta: 20,
+    previous_quantity: 4,
+    new_quantity: 24,
+    reason: 'Weekly dairy supply replenishment from Govardhan Dairy',
+    purchase_cost_paise: 760000,
+    recorded_by: 'Harrison Sharma (Owner)',
+    created_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 'sm-2',
+    item_id: 'inv-7',
+    item_name: 'Black Sliced Spanish Olives',
+    movement_type: 'wastage',
+    quantity_delta: -2,
+    previous_quantity: 8,
+    new_quantity: 6,
+    reason: 'Damaged can seal discarded during prep inspection',
+    recorded_by: 'Chef Amit (Kitchen Staff)',
+    created_at: new Date(Date.now() - 8 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 'sm-3',
+    item_id: 'inv-10',
+    item_name: 'Commercial LPG Cylinder 19kg',
+    movement_type: 'purchase',
+    quantity_delta: 2,
+    previous_quantity: 1,
+    new_quantity: 3,
+    reason: 'Refill delivery for Pali Khera pizza oven',
+    purchase_cost_paise: 370000,
+    recorded_by: 'Rajesh Verma (Manager)',
+    created_at: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
+  },
+];
+
+// ==========================================
+// INITIAL STORE EXPENSES
+// ==========================================
+
+export const INITIAL_STORE_EXPENSES: StoreExpense[] = [
+  {
+    id: 'exp-1',
+    category: 'raw_materials',
+    description: 'Fresh dairy milk and pure mozzarella delivery',
+    amount_paise: 760000, // ₹7,600
+    payment_method: 'upi',
+    receipt_number: 'REC-20261014-01',
+    recorded_by: 'Harrison Sharma (Owner)',
+    date: '2026-10-14',
+    created_at: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 'exp-2',
+    category: 'utilities',
+    description: '19kg Commercial LPG cylinder refill (2 units)',
+    amount_paise: 370000, // ₹3,700
+    payment_method: 'cash',
+    receipt_number: 'IOC-98442',
+    recorded_by: 'Rajesh Verma (Manager)',
+    date: '2026-10-14',
+    created_at: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 'exp-3',
+    category: 'packaging',
+    description: 'Batch of 500 pizza delivery boxes and greaseproof liners',
+    amount_paise: 580000, // ₹5,800
+    payment_method: 'bank_transfer',
+    receipt_number: 'INV-APEX-772',
+    recorded_by: 'Harrison Sharma (Owner)',
+    date: '2026-10-13',
+    created_at: new Date(Date.now() - 26 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 'exp-4',
+    category: 'maintenance',
+    description: 'Stone oven burner servicing and chimney exhaust cleaning',
+    amount_paise: 120000, // ₹1,200
+    payment_method: 'cash',
+    receipt_number: 'VOUCHER-104',
+    recorded_by: 'Rajesh Verma (Manager)',
+    date: '2026-10-12',
+    created_at: new Date(Date.now() - 50 * 60 * 60 * 1000).toISOString(),
+  },
+];
+
+// ==========================================
+// INITIAL CUSTOMER LOYALTY PROGRAM CONFIG & DATA
+// ==========================================
+
+export const INITIAL_LOYALTY_CONFIG: LoyaltyProgramConfig = {
+  is_active: true,
+  min_order_paise: 29900, // ₹299 minimum order to qualify for 1 stamp
+  stamps_required: 6, // 6 stamps unlock 1 free pizza
+  reward_pizza_name: 'Regular Margherita or Farmhouse (Value up to ₹349)',
+  eligible_reward_product_ids: ['prod-1', 'prod-2'],
+  allow_coupon_stacking: false,
+  terms: 'Earn 1 stamp per completed order of ₹299 or more (excluding delivery fees). Collect 6 stamps to unlock a free regular artisan pizza of your choice. Valid for dine-in, takeaway, and direct online delivery. Cannot be combined with other promotional coupons.',
+};
+
+export const INITIAL_LOYALTY_ACCOUNTS: LoyaltyAccount[] = [
+  {
+    id: 'loy-1',
+    customer_phone: '9897445566',
+    customer_name: 'Aman Mathur',
+    stamps_count: 4,
+    total_stamps_earned: 4,
+    available_rewards_count: 0,
+    rewards_redeemed_count: 0,
+    created_at: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+    updated_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 'loy-2',
+    customer_phone: '9876543210',
+    customer_name: 'Priyanshu Bansal',
+    stamps_count: 6, // Unlocked reward!
+    total_stamps_earned: 6,
+    available_rewards_count: 1,
+    rewards_redeemed_count: 0,
+    created_at: new Date(Date.now() - 45 * 24 * 60 * 60 * 1000).toISOString(),
+    updated_at: new Date(Date.now() - 10 * 60 * 60 * 1000).toISOString(),
+  },
+];
+
+export const INITIAL_LOYALTY_LEDGER: LoyaltyLedgerEntry[] = [
+  {
+    id: 'led-1',
+    customer_phone: '9897445566',
+    order_number: 'PH-20260915-1102',
+    event_type: 'stamp_earned',
+    stamps_delta: 1,
+    order_subtotal_paise: 38900,
+    reason: 'Qualifying order completed (Subtotal ₹389 >= ₹299 threshold)',
+    recorded_by: 'System',
+    created_at: new Date(Date.now() - 28 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 'led-2',
+    customer_phone: '9897445566',
+    order_number: 'PH-20260925-2419',
+    event_type: 'stamp_earned',
+    stamps_delta: 1,
+    order_subtotal_paise: 42900,
+    reason: 'Qualifying order completed (Subtotal ₹429 >= ₹299 threshold)',
+    recorded_by: 'System',
+    created_at: new Date(Date.now() - 18 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 'led-3',
+    customer_phone: '9897445566',
+    order_number: 'PH-20261005-3882',
+    event_type: 'stamp_earned',
+    stamps_delta: 1,
+    order_subtotal_paise: 57700,
+    reason: 'Qualifying order completed (Subtotal ₹577 >= ₹299 threshold)',
+    recorded_by: 'System',
+    created_at: new Date(Date.now() - 9 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 'led-4',
+    customer_phone: '9897445566',
+    order_number: 'PH-20261014-9124',
+    event_type: 'stamp_earned',
+    stamps_delta: 1,
+    order_subtotal_paise: 34900,
+    reason: 'Qualifying order completed (Subtotal ₹349 >= ₹299 threshold)',
+    recorded_by: 'System',
+    created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+  },
+];
+

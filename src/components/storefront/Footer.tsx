@@ -54,6 +54,9 @@ export function Footer() {
                 <Link href="/menu" className="hover:text-yellow-300 transition">Complete Food Menu</Link>
               </li>
               <li>
+                <Link href="/rewards" className="hover:text-yellow-300 transition text-yellow-300 font-bold">Pizza Harrison Rewards 🎁</Link>
+              </li>
+              <li>
                 <Link href="/offers" className="hover:text-yellow-300 transition">GLA Student Deals & Coupons</Link>
               </li>
               <li>

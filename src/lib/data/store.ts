@@ -19,6 +19,12 @@ import {
   RestaurantSettings,
   AuditLog,
   CustomerSummary,
+  InventoryItem,
+  StockMovement,
+  StoreExpense,
+  LoyaltyProgramConfig,
+  LoyaltyAccount,
+  LoyaltyLedgerEntry,
 } from '../types';
 import {
   INITIAL_CATEGORIES,
@@ -33,6 +39,12 @@ import {
   INITIAL_STAFF_MEMBERS,
   INITIAL_SETTINGS,
   INITIAL_AUDIT_LOGS,
+  INITIAL_INVENTORY_ITEMS,
+  INITIAL_STOCK_MOVEMENTS,
+  INITIAL_STORE_EXPENSES,
+  INITIAL_LOYALTY_CONFIG,
+  INITIAL_LOYALTY_ACCOUNTS,
+  INITIAL_LOYALTY_LEDGER,
 } from './mock-data';
 import { getSupabaseServerClient } from '../supabase/server';
 import { calculateFullPricing } from '../pricing';
@@ -51,6 +63,12 @@ class MemoryDataStore {
   staff: Profile[] = JSON.parse(JSON.stringify(INITIAL_STAFF_MEMBERS));
   settings: RestaurantSettings = JSON.parse(JSON.stringify(INITIAL_SETTINGS));
   auditLogs: AuditLog[] = JSON.parse(JSON.stringify(INITIAL_AUDIT_LOGS));
+  inventory: InventoryItem[] = JSON.parse(JSON.stringify(INITIAL_INVENTORY_ITEMS));
+  stockMovements: StockMovement[] = JSON.parse(JSON.stringify(INITIAL_STOCK_MOVEMENTS));
+  expenses: StoreExpense[] = JSON.parse(JSON.stringify(INITIAL_STORE_EXPENSES));
+  loyaltyConfig: LoyaltyProgramConfig = JSON.parse(JSON.stringify(INITIAL_LOYALTY_CONFIG));
+  loyaltyAccounts: LoyaltyAccount[] = JSON.parse(JSON.stringify(INITIAL_LOYALTY_ACCOUNTS));
+  loyaltyLedger: LoyaltyLedgerEntry[] = JSON.parse(JSON.stringify(INITIAL_LOYALTY_LEDGER));
 }
 
 const globalForStore = globalThis as unknown as { pizzaStore: MemoryDataStore };
@@ -239,6 +257,14 @@ export async function createOrderServerTrusted(
   }
   if (payload.order_type === 'delivery' && (!payload.delivery_address || payload.delivery_address.trim().length < 5)) {
     return { success: false, error: 'Complete delivery address is required for food delivery.' };
+  }
+
+  // Check store online ordering status
+  if (!memoryStore.settings.is_online_ordering_enabled) {
+    return {
+      success: false,
+      error: 'Pizza Harrison is currently closed and not accepting online orders right now. Please check our opening hours or call the store directly.',
+    };
   }
 
   // 2. Fetch current prices & build immutable items snapshot
@@ -440,8 +466,12 @@ export async function updateOrderStatus(
   order.status = newStatus;
   order.updated_at = new Date().toISOString();
 
-  if (newStatus === 'completed' && order.payment_method === 'cod') {
-    order.payment_status = 'completed'; // Paid upon delivery
+  if (newStatus === 'completed') {
+    if (order.payment_method === 'cod') {
+      order.payment_status = 'completed'; // Paid upon delivery
+    }
+    // Award customer loyalty stamp if eligible
+    processOrderCompletedLoyaltyStamp(order);
   }
 
   return { success: true, order };
@@ -960,6 +990,9 @@ export async function cancelOrder(
     order.refunded_paise = order.total_paise;
   }
 
+  // Revoke loyalty stamp if one was awarded
+  revokeOrderLoyaltyStamp(order, reason);
+
   addAuditLogEntry({
     user_name: cancelledBy,
     action: 'ORDER_CANCELLED',
@@ -1441,3 +1474,536 @@ export function computeAnalytics(
     totalUniqueCustomers: customers.length,
   };
 }
+
+// ==========================================
+// STORE OPERATIONAL STATUS (OPEN / CLOSED)
+// ==========================================
+
+export async function setStoreAcceptingOrders(
+  isEnabled: boolean,
+  updatedBy: string = 'Owner',
+  reason?: string
+): Promise<{ success: boolean; settings: RestaurantSettings }> {
+  memoryStore.settings.is_online_ordering_enabled = isEnabled;
+  addAuditLogEntry({
+    user_name: updatedBy,
+    action: isEnabled ? 'STORE_OPENED_ORDERS_RESUMED' : 'STORE_CLOSED_ORDERS_STOPPED',
+    entity_type: 'settings',
+    entity_id: 'store_status',
+    details: isEnabled
+      ? 'Store marked open. Online ordering enabled for customers.'
+      : `Store closed to new orders. Reason: ${reason || 'Daily closure / Kitchen maintenance'}. Active orders can still be completed by staff.`,
+  });
+  return { success: true, settings: memoryStore.settings };
+}
+
+// ==========================================
+// INVENTORY & STOCK MANAGEMENT API
+// ==========================================
+
+export async function fetchInventoryItems(): Promise<InventoryItem[]> {
+  return [...memoryStore.inventory];
+}
+
+export async function addStockPurchase(payload: {
+  item_id: string;
+  quantity: number;
+  purchase_cost_paise: number;
+  supplier_name?: string;
+  recorded_by: string;
+  reason?: string;
+}): Promise<{ success: boolean; item?: InventoryItem; error?: string }> {
+  const item = memoryStore.inventory.find((i) => i.id === payload.item_id);
+  if (!item) return { success: false, error: 'Inventory item not found.' };
+  if (payload.quantity <= 0) return { success: false, error: 'Purchase quantity must be greater than zero.' };
+
+  const prevQty = item.current_quantity;
+  item.current_quantity += payload.quantity;
+  item.last_purchased_date = new Date().toISOString().slice(0, 10);
+  item.last_updated_at = new Date().toISOString();
+  if (payload.supplier_name) item.supplier_name = payload.supplier_name;
+
+  const movement: StockMovement = {
+    id: `sm-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+    item_id: item.id,
+    item_name: item.name,
+    movement_type: 'purchase',
+    quantity_delta: payload.quantity,
+    previous_quantity: prevQty,
+    new_quantity: item.current_quantity,
+    reason: payload.reason || `Stock purchase: +${payload.quantity} ${item.unit} from ${payload.supplier_name || 'Vendor'}`,
+    purchase_cost_paise: payload.purchase_cost_paise,
+    recorded_by: payload.recorded_by,
+    created_at: new Date().toISOString(),
+  };
+  memoryStore.stockMovements.unshift(movement);
+
+  addAuditLogEntry({
+    user_name: payload.recorded_by,
+    action: 'INVENTORY_PURCHASE_RECORDED',
+    entity_type: 'inventory',
+    entity_id: item.id,
+    details: `Purchased +${payload.quantity} ${item.unit} of "${item.name}". New stock: ${item.current_quantity} ${item.unit}. Total cost: ₹${(payload.purchase_cost_paise / 100).toFixed(2)}`,
+  });
+
+  return { success: true, item };
+}
+
+export async function adjustStockQuantity(payload: {
+  item_id: string;
+  quantity_delta: number;
+  movement_type: 'adjustment' | 'wastage' | 'manual_count';
+  reason: string;
+  recorded_by: string;
+}): Promise<{ success: boolean; item?: InventoryItem; error?: string }> {
+  const item = memoryStore.inventory.find((i) => i.id === payload.item_id);
+  if (!item) return { success: false, error: 'Inventory item not found.' };
+  if (!payload.reason || payload.reason.trim().length < 4) {
+    return { success: false, error: 'A valid reason (minimum 4 characters) is required for inventory adjustments.' };
+  }
+
+  const prevQty = item.current_quantity;
+  let newQty = prevQty;
+  if (payload.movement_type === 'manual_count') {
+    newQty = Math.max(0, payload.quantity_delta);
+  } else {
+    newQty = Math.max(0, prevQty + payload.quantity_delta);
+  }
+  const delta = newQty - prevQty;
+
+  item.current_quantity = newQty;
+  item.last_updated_at = new Date().toISOString();
+
+  const movement: StockMovement = {
+    id: `sm-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+    item_id: item.id,
+    item_name: item.name,
+    movement_type: payload.movement_type,
+    quantity_delta: delta,
+    previous_quantity: prevQty,
+    new_quantity: newQty,
+    reason: payload.reason.trim(),
+    recorded_by: payload.recorded_by,
+    created_at: new Date().toISOString(),
+  };
+  memoryStore.stockMovements.unshift(movement);
+
+  addAuditLogEntry({
+    user_name: payload.recorded_by,
+    action: 'INVENTORY_MANUAL_ADJUSTMENT',
+    entity_type: 'inventory',
+    entity_id: item.id,
+    details: `Adjusted stock for "${item.name}" from ${prevQty} to ${newQty} ${item.unit} (${delta >= 0 ? '+' : ''}${delta}). Reason: ${payload.reason}`,
+  });
+
+  return { success: true, item };
+}
+
+export async function fetchStockMovements(itemId?: string): Promise<StockMovement[]> {
+  if (itemId) {
+    return memoryStore.stockMovements.filter((sm) => sm.item_id === itemId);
+  }
+  return [...memoryStore.stockMovements];
+}
+
+// ==========================================
+// STORE EXPENSES API
+// ==========================================
+
+export async function fetchStoreExpenses(dateFrom?: string, dateTo?: string): Promise<StoreExpense[]> {
+  let list = [...memoryStore.expenses];
+  if (dateFrom) list = list.filter((e) => e.date >= dateFrom);
+  if (dateTo) list = list.filter((e) => e.date <= dateTo);
+  return list.sort((a, b) => b.date.localeCompare(a.date));
+}
+
+export async function recordStoreExpense(payload: {
+  category: any;
+  description: string;
+  amount_paise: number;
+  payment_method: 'cash' | 'upi' | 'bank_transfer';
+  receipt_number?: string;
+  date?: string;
+  recorded_by: string;
+}): Promise<{ success: boolean; expense?: StoreExpense; error?: string }> {
+  if (!payload.description || payload.description.trim().length < 3) {
+    return { success: false, error: 'A valid description is required for recorded expense.' };
+  }
+  if (!payload.amount_paise || payload.amount_paise <= 0) {
+    return { success: false, error: 'Expense amount must be greater than zero.' };
+  }
+
+  const newExpense: StoreExpense = {
+    id: `exp-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+    category: payload.category,
+    description: payload.description.trim(),
+    amount_paise: payload.amount_paise,
+    payment_method: payload.payment_method,
+    receipt_number: payload.receipt_number?.trim(),
+    recorded_by: payload.recorded_by,
+    date: payload.date || new Date().toISOString().slice(0, 10),
+    created_at: new Date().toISOString(),
+  };
+
+  memoryStore.expenses.unshift(newExpense);
+
+  addAuditLogEntry({
+    user_name: payload.recorded_by,
+    action: 'STORE_EXPENSE_RECORDED',
+    entity_type: 'expense',
+    entity_id: newExpense.id,
+    details: `Recorded ${payload.category} expense of ₹${(payload.amount_paise / 100).toFixed(2)}: "${payload.description}". Paid via ${payload.payment_method.toUpperCase()}`,
+  });
+
+  return { success: true, expense: newExpense };
+}
+
+// ==========================================
+// CUSTOMER LOYALTY PROGRAM API
+// ==========================================
+
+export async function fetchLoyaltyConfig(): Promise<LoyaltyProgramConfig> {
+  return { ...memoryStore.loyaltyConfig };
+}
+
+export async function updateLoyaltyConfig(
+  newConfig: Partial<LoyaltyProgramConfig>,
+  updatedBy: string = 'Owner'
+): Promise<{ success: boolean; config: LoyaltyProgramConfig }> {
+  memoryStore.loyaltyConfig = {
+    ...memoryStore.loyaltyConfig,
+    ...newConfig,
+  };
+
+  addAuditLogEntry({
+    user_name: updatedBy,
+    action: 'LOYALTY_CONFIG_UPDATED',
+    entity_type: 'loyalty',
+    details: `Updated loyalty program settings. Status: ${memoryStore.loyaltyConfig.is_active ? 'ACTIVE' : 'DISABLED'}. Min spend: ₹${(memoryStore.loyaltyConfig.min_order_paise / 100).toFixed(0)}. Stamps needed: ${memoryStore.loyaltyConfig.stamps_required}.`,
+  });
+
+  return { success: true, config: memoryStore.loyaltyConfig };
+}
+
+export async function getLoyaltyAccountByPhone(phone: string): Promise<{
+  account: LoyaltyAccount | null;
+  ledger: LoyaltyLedgerEntry[];
+  config: LoyaltyProgramConfig;
+}> {
+  const cleanPhone = phone.replace(/\D/g, '');
+  const account = memoryStore.loyaltyAccounts.find((a) => a.customer_phone === cleanPhone) || null;
+  const ledger = memoryStore.loyaltyLedger.filter((l) => l.customer_phone === cleanPhone);
+
+  return {
+    account,
+    ledger,
+    config: memoryStore.loyaltyConfig,
+  };
+}
+
+export async function processOrderCompletedLoyaltyStamp(
+  order: Order
+): Promise<{ earned: boolean; reason?: string }> {
+  if (!memoryStore.loyaltyConfig.is_active) {
+    return { earned: false, reason: 'Loyalty program is currently disabled.' };
+  }
+
+  // Idempotency: verify stamp not already awarded for this order
+  const existingEntry = memoryStore.loyaltyLedger.find(
+    (l) => l.order_number === order.order_number && l.event_type === 'stamp_earned'
+  );
+  if (existingEntry) {
+    return { earned: false, reason: 'Stamp already awarded for this order.' };
+  }
+
+  const foodSubtotalPaise = order.subtotal_paise;
+  if (foodSubtotalPaise < memoryStore.loyaltyConfig.min_order_paise) {
+    // Record non-qualifying entry for customer transparency
+    memoryStore.loyaltyLedger.unshift({
+      id: `led-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      customer_phone: order.customer_phone,
+      order_id: order.id,
+      order_number: order.order_number,
+      event_type: 'manual_adjustment',
+      stamps_delta: 0,
+      order_subtotal_paise: foodSubtotalPaise,
+      reason: `Order did not qualify: Food subtotal of ₹${(foodSubtotalPaise / 100).toFixed(0)} is below the ₹${(memoryStore.loyaltyConfig.min_order_paise / 100).toFixed(0)} minimum.`,
+      recorded_by: 'System',
+      created_at: new Date().toISOString(),
+    });
+    return { earned: false, reason: 'Subtotal below minimum spend.' };
+  }
+
+  let account = memoryStore.loyaltyAccounts.find((a) => a.customer_phone === order.customer_phone);
+  if (!account) {
+    account = {
+      id: `loy-${Date.now()}`,
+      customer_phone: order.customer_phone,
+      customer_name: order.customer_name,
+      stamps_count: 0,
+      total_stamps_earned: 0,
+      available_rewards_count: 0,
+      rewards_redeemed_count: 0,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    memoryStore.loyaltyAccounts.push(account);
+  }
+
+  account.stamps_count += 1;
+  account.total_stamps_earned += 1;
+  account.updated_at = new Date().toISOString();
+
+  let rewardUnlocked = false;
+  if (account.stamps_count >= memoryStore.loyaltyConfig.stamps_required) {
+    account.stamps_count -= memoryStore.loyaltyConfig.stamps_required;
+    account.available_rewards_count += 1;
+    rewardUnlocked = true;
+  }
+
+  memoryStore.loyaltyLedger.unshift({
+    id: `led-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+    customer_phone: order.customer_phone,
+    order_id: order.id,
+    order_number: order.order_number,
+    event_type: 'stamp_earned',
+    stamps_delta: 1,
+    order_subtotal_paise: foodSubtotalPaise,
+    reason: `Earned 1 stamp from qualifying order ${order.order_number} (Subtotal ₹${(foodSubtotalPaise / 100).toFixed(0)})`,
+    recorded_by: 'System',
+    created_at: new Date().toISOString(),
+  });
+
+  if (rewardUnlocked) {
+    memoryStore.loyaltyLedger.unshift({
+      id: `led-rew-${Date.now()}`,
+      customer_phone: order.customer_phone,
+      order_number: order.order_number,
+      event_type: 'reward_unlocked',
+      stamps_delta: 0,
+      reason: `🎉 Congratulations! 6 stamps completed. Unlocked 1 Free Pizza reward: ${memoryStore.loyaltyConfig.reward_pizza_name}`,
+      recorded_by: 'System',
+      created_at: new Date().toISOString(),
+    });
+  }
+
+  return { earned: true };
+}
+
+export async function revokeOrderLoyaltyStamp(
+  orderOrId: Order | string,
+  phoneOrReason?: string,
+  maybeReason?: string
+): Promise<{ revoked: boolean; reason?: string }> {
+  let orderNumber: string = '';
+  let customerPhone: string = '';
+  let reason: string = 'Order cancelled or refunded';
+
+  if (typeof orderOrId === 'object' && orderOrId !== null) {
+    orderNumber = orderOrId.order_number;
+    customerPhone = orderOrId.customer_phone;
+    reason = phoneOrReason || reason;
+  } else {
+    // orderOrId is order_id or order_number
+    const foundOrder = memoryStore.orders.find((o) => o.id === orderOrId || o.order_number === orderOrId);
+    if (foundOrder) {
+      orderNumber = foundOrder.order_number;
+      customerPhone = foundOrder.customer_phone;
+      reason = phoneOrReason || maybeReason || reason;
+    } else {
+      orderNumber = orderOrId;
+      customerPhone = phoneOrReason || '';
+      reason = maybeReason || 'Order cancelled or refunded';
+    }
+  }
+
+  // Idempotency: Verify a stamp was actually awarded for this order
+  const existingStampEarned = memoryStore.loyaltyLedger.find(
+    (l) =>
+      (orderNumber && l.order_number === orderNumber && l.event_type === 'stamp_earned') ||
+      (typeof orderOrId === 'string' && l.order_id === orderOrId && l.event_type === 'stamp_earned')
+  );
+  if (!existingStampEarned) {
+    return { revoked: false, reason: 'No loyalty stamp was awarded for this order.' };
+  }
+
+  const effectiveOrderNumber = existingStampEarned.order_number || orderNumber;
+  const effectivePhone = existingStampEarned.customer_phone || customerPhone;
+
+  // Verify not already revoked
+  const alreadyRevoked = memoryStore.loyaltyLedger.find(
+    (l) =>
+      (effectiveOrderNumber && l.order_number === effectiveOrderNumber && l.event_type === 'stamp_revoked') ||
+      (typeof orderOrId === 'string' && l.order_id === orderOrId && l.event_type === 'stamp_revoked')
+  );
+  if (alreadyRevoked) {
+    return { revoked: false, reason: 'Stamp has already been revoked for this order.' };
+  }
+
+  const account = memoryStore.loyaltyAccounts.find((a) => a.customer_phone === effectivePhone);
+  if (account) {
+    account.stamps_count = Math.max(0, account.stamps_count - 1);
+    account.total_stamps_earned = Math.max(0, account.total_stamps_earned - 1);
+    account.updated_at = new Date().toISOString();
+  }
+
+  memoryStore.loyaltyLedger.unshift({
+    id: `led-rev-${Date.now()}`,
+    customer_phone: effectivePhone,
+    order_id: typeof orderOrId === 'string' ? orderOrId : (orderOrId as Order).id,
+    order_number: effectiveOrderNumber,
+    event_type: 'stamp_revoked',
+    stamps_delta: -1,
+    reason: `Stamp revoked due to order cancellation/refund: ${reason}`,
+    recorded_by: 'System',
+    created_at: new Date().toISOString(),
+  });
+
+  return { revoked: true, reason: 'Stamp successfully revoked.' };
+}
+
+export async function redeemLoyaltyReward(
+  payloadOrPhone: { customer_phone: string; order_number?: string; staff_name?: string } | string,
+  staffName?: string,
+  orderNumber?: string
+): Promise<{ success: boolean; error?: string; rewardPizzaName?: string }> {
+  let customerPhone = '';
+  let orderNum = orderNumber;
+  let staff = staffName || 'Staff';
+
+  if (typeof payloadOrPhone === 'object') {
+    customerPhone = payloadOrPhone.customer_phone;
+    orderNum = payloadOrPhone.order_number;
+    staff = payloadOrPhone.staff_name || 'Staff';
+  } else {
+    customerPhone = payloadOrPhone;
+  }
+
+  const cleanPhone = customerPhone.replace(/\D/g, '');
+  const account = memoryStore.loyaltyAccounts.find((a) => a.customer_phone === cleanPhone);
+
+  if (!account || account.available_rewards_count <= 0) {
+    return { success: false, error: 'No available free pizza rewards found for this phone number.' };
+  }
+
+  account.available_rewards_count -= 1;
+  account.rewards_redeemed_count += 1;
+  account.updated_at = new Date().toISOString();
+
+  memoryStore.loyaltyLedger.unshift({
+    id: `led-red-${Date.now()}`,
+    customer_phone: cleanPhone,
+    order_number: orderNum,
+    event_type: 'reward_redeemed',
+    stamps_delta: 0,
+    reason: `Redeemed free reward pizza: ${memoryStore.loyaltyConfig.reward_pizza_name}${orderNum ? ` on order ${orderNum}` : ''}`,
+    recorded_by: staff,
+    created_at: new Date().toISOString(),
+  });
+
+  addAuditLogEntry({
+    user_name: staff,
+    action: 'LOYALTY_REWARD_REDEEMED',
+    entity_type: 'loyalty',
+    details: `Customer ${cleanPhone} redeemed 1 free pizza reward (${memoryStore.loyaltyConfig.reward_pizza_name}).`,
+  });
+
+  return { success: true, rewardPizzaName: memoryStore.loyaltyConfig.reward_pizza_name };
+}
+
+export async function recordLoyaltyAdjustment(
+  payloadOrPhone:
+    | {
+        customer_phone: string;
+        stamps_delta: number;
+        reason: string;
+        recorded_by: string;
+      }
+    | string,
+  stampsDelta?: number,
+  reason?: string,
+  recordedBy?: string
+): Promise<{ success: boolean; account?: LoyaltyAccount; error?: string }> {
+  let customerPhone = '';
+  let delta = 0;
+  let auditReason = '';
+  let staff = 'Staff';
+
+  if (typeof payloadOrPhone === 'object') {
+    customerPhone = payloadOrPhone.customer_phone;
+    delta = payloadOrPhone.stamps_delta;
+    auditReason = payloadOrPhone.reason;
+    staff = payloadOrPhone.recorded_by;
+  } else {
+    customerPhone = payloadOrPhone;
+    delta = stampsDelta || 0;
+    auditReason = reason || '';
+    staff = recordedBy || 'Staff';
+  }
+
+  const cleanPhone = customerPhone.replace(/\D/g, '');
+  if (!cleanPhone || cleanPhone.length < 10) {
+    return { success: false, error: 'Valid 10-digit customer phone number is required.' };
+  }
+  if (!auditReason || auditReason.trim().length < 5) {
+    return { success: false, error: 'A mandatory audit reason (minimum 5 characters) is required for staff adjustments.' };
+  }
+
+  let account = memoryStore.loyaltyAccounts.find((a) => a.customer_phone === cleanPhone);
+  if (!account) {
+    account = {
+      id: `loy-${Date.now()}`,
+      customer_phone: cleanPhone,
+      customer_name: 'Customer',
+      stamps_count: 0,
+      total_stamps_earned: 0,
+      available_rewards_count: 0,
+      rewards_redeemed_count: 0,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    memoryStore.loyaltyAccounts.push(account);
+  }
+
+  const prevStamps = account.stamps_count;
+  account.stamps_count = Math.max(0, account.stamps_count + delta);
+  if (delta > 0) {
+    account.total_stamps_earned += delta;
+  } else {
+    account.total_stamps_earned = Math.max(0, account.total_stamps_earned + delta);
+  }
+  account.updated_at = new Date().toISOString();
+
+  if (account.stamps_count >= memoryStore.loyaltyConfig.stamps_required) {
+    account.stamps_count -= memoryStore.loyaltyConfig.stamps_required;
+    account.available_rewards_count += 1;
+  }
+
+  memoryStore.loyaltyLedger.unshift({
+    id: `led-adj-${Date.now()}`,
+    customer_phone: cleanPhone,
+    event_type: 'manual_adjustment',
+    stamps_delta: delta,
+    reason: `Staff adjustment by ${staff}: ${auditReason} (Stamps: ${prevStamps} -> ${account.stamps_count})`,
+    recorded_by: staff,
+    created_at: new Date().toISOString(),
+  });
+
+  addAuditLogEntry({
+    user_name: staff,
+    action: 'LOYALTY_MANUAL_ADJUSTMENT',
+    entity_type: 'loyalty',
+    details: `Customer ${cleanPhone}: adjustment of ${delta > 0 ? `+${delta}` : delta} stamps. Reason: ${auditReason}`,
+  });
+
+  return { success: true, account };
+}
+
+export async function fetchLoyaltyLedger(phone?: string): Promise<LoyaltyLedgerEntry[]> {
+  if (phone) {
+    const cleanPhone = phone.replace(/\D/g, '');
+    return memoryStore.loyaltyLedger.filter((l) => l.customer_phone === cleanPhone);
+  }
+  return [...memoryStore.loyaltyLedger];
+}
+

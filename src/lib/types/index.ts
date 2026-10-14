@@ -289,3 +289,122 @@ export interface RestaurantSettings {
   holiday_closures: HolidayClosure[];
   privacy_data_retention_days: number;
 }
+
+// ==========================================
+// INVENTORY & STOCK MANAGEMENT
+// ==========================================
+
+export type InventoryItemCategory =
+  | 'flour_dough'
+  | 'cheese_dairy'
+  | 'sauces'
+  | 'vegetables'
+  | 'packaging'
+  | 'beverages'
+  | 'cleaning_supplies'
+  | 'utilities'
+  | 'other';
+
+export type InventoryUnit = 'kg' | 'liters' | 'packets' | 'boxes' | 'pcs';
+
+export interface InventoryItem {
+  id: string;
+  name: string;
+  category: InventoryItemCategory;
+  unit: InventoryUnit;
+  current_quantity: number;
+  low_stock_threshold: number;
+  purchase_cost_paise: number; // Cost per unit in paise
+  supplier_name?: string;
+  last_purchased_date?: string;
+  last_updated_at: string;
+}
+
+export type StockMovementType = 'purchase' | 'adjustment' | 'wastage' | 'manual_count';
+
+export interface StockMovement {
+  id: string;
+  item_id: string;
+  item_name: string;
+  movement_type: StockMovementType;
+  quantity_delta: number;
+  previous_quantity: number;
+  new_quantity: number;
+  reason: string;
+  purchase_cost_paise?: number;
+  recorded_by: string;
+  created_at: string;
+}
+
+// ==========================================
+// STORE EXPENSES
+// ==========================================
+
+export type ExpenseCategory =
+  | 'raw_materials'
+  | 'utilities'
+  | 'packaging'
+  | 'maintenance'
+  | 'staff_wages'
+  | 'rent'
+  | 'marketing'
+  | 'other';
+
+export interface StoreExpense {
+  id: string;
+  category: ExpenseCategory;
+  description: string;
+  amount_paise: number;
+  payment_method: 'cash' | 'upi' | 'bank_transfer';
+  receipt_number?: string;
+  recorded_by: string;
+  date: string;
+  created_at: string;
+}
+
+// ==========================================
+// CUSTOMER LOYALTY PROGRAM (PIZZA HARRISON REWARDS)
+// ==========================================
+
+export type LoyaltyEventType =
+  | 'stamp_earned'
+  | 'stamp_revoked'
+  | 'reward_unlocked'
+  | 'reward_redeemed'
+  | 'manual_adjustment';
+
+export interface LoyaltyProgramConfig {
+  is_active: boolean;
+  min_order_paise: number; // ₹299 = 29900 paise
+  stamps_required: number; // 6 stamps
+  reward_pizza_name: string; // 'Regular Margherita or Farmhouse'
+  eligible_reward_product_ids: string[];
+  allow_coupon_stacking: boolean;
+  terms: string;
+}
+
+export interface LoyaltyAccount {
+  id: string;
+  customer_phone: string;
+  customer_name: string;
+  stamps_count: number; // Current stamps towards next reward (0 to 5)
+  total_stamps_earned: number;
+  available_rewards_count: number;
+  rewards_redeemed_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface LoyaltyLedgerEntry {
+  id: string;
+  customer_phone: string;
+  order_id?: string;
+  order_number?: string;
+  event_type: LoyaltyEventType;
+  stamps_delta: number;
+  order_subtotal_paise?: number;
+  reason: string;
+  recorded_by: string;
+  created_at: string;
+}
+

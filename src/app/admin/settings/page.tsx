@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { RestaurantSettings, HolidayClosure } from '@/lib/types';
 import { formatINR } from '@/lib/pricing';
+import Link from 'next/link';
 
 export default function AdminSettingsPage() {
   const [settings, setSettings] = useState<RestaurantSettings | null>(null);
@@ -156,7 +157,45 @@ export default function AdminSettingsPage() {
 
   return (
     <div className="space-y-6 max-w-4xl">
-      
+      {/* Sub-Navigation Tabs */}
+      <div className="flex items-center gap-2 border-b border-border-warm pb-3 overflow-x-auto text-xs font-bold">
+        <Link
+          href="/admin/settings"
+          className="px-4 py-2 rounded-xl bg-forest text-white shadow-xs transition flex items-center gap-1.5"
+        >
+          <Settings className="w-3.5 h-3.5" />
+          <span>Store Settings & Hours</span>
+        </Link>
+
+        <Link
+          href="/admin/staff"
+          className="px-4 py-2 rounded-xl bg-white text-charcoal border border-border-warm hover:bg-neutral-50 transition flex items-center gap-1.5"
+        >
+          <span>Staff Access & Roles (RBAC)</span>
+        </Link>
+
+        <Link
+          href="/admin/bookings"
+          className="px-4 py-2 rounded-xl bg-white text-charcoal border border-border-warm hover:bg-neutral-50 transition flex items-center gap-1.5"
+        >
+          <span>Table Bookings</span>
+        </Link>
+
+        <Link
+          href="/admin/audit-logs"
+          className="px-4 py-2 rounded-xl bg-white text-charcoal border border-border-warm hover:bg-neutral-50 transition flex items-center gap-1.5"
+        >
+          <span>System Audit Logs</span>
+        </Link>
+
+        <Link
+          href="/admin/reviews"
+          className="px-4 py-2 rounded-xl bg-white text-charcoal border border-border-warm hover:bg-neutral-50 transition flex items-center gap-1.5"
+        >
+          <span>Customer Reviews</span>
+        </Link>
+      </div>
+
       {/* Top Banner */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-3xl border border-border-warm shadow-xs">
         <div>

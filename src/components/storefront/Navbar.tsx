@@ -33,6 +33,7 @@ export function Navbar() {
   const navLinks = [
     { label: 'Menu', href: '/menu' },
     { label: 'Offers & Combos', href: '/offers' },
+    { label: 'Rewards 🎁', href: '/rewards' },
     { label: 'Book a Table', href: '/book-table' },
     { label: 'Track Order', href: '/order-tracking/search' },
     { label: 'Our Story', href: '/about' },

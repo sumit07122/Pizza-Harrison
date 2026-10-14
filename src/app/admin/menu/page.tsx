@@ -21,8 +21,11 @@ import {
 } from 'lucide-react';
 import { Product, Category } from '@/lib/types';
 import { formatINR } from '@/lib/pricing';
+import { LoyaltyManagementTab } from '@/components/admin/LoyaltyManagementTab';
+import Link from 'next/link';
 
 export default function AdminMenuPage() {
+  const [activeTab, setActiveTab] = useState<'menu' | 'loyalty'>('menu');
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
@@ -80,6 +83,12 @@ export default function AdminMenuPage() {
 
   useEffect(() => {
     loadData();
+    if (typeof window !== 'undefined') {
+      const p = new URLSearchParams(window.location.search);
+      if (p.get('tab') === 'loyalty') {
+        setActiveTab('loyalty');
+      }
+    }
   }, []);
 
   const resetForm = () => {
@@ -322,30 +331,79 @@ export default function AdminMenuPage() {
 
   return (
     <div className="space-y-6 max-w-7xl">
-      
-      {/* Top Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-3xl border border-border-warm shadow-xs">
-        <div>
-          <div className="flex items-center gap-2">
-            <Pizza className="w-5 h-5 text-primary-green" />
-            <h1 className="text-xl sm:text-2xl font-black text-forest font-serif">
-              Menu & Product Catalog
-            </h1>
-          </div>
-          <p className="text-xs text-muted-gray mt-1">
-            Manage recipes, individual variant prices, stock availability, and price verification approvals.
-          </p>
-        </div>
+      {/* Sub-Navigation Tabs */}
+      <div className="flex items-center gap-2 border-b border-border-warm pb-3 overflow-x-auto text-xs font-bold">
+        <button
+          type="button"
+          onClick={() => setActiveTab('menu')}
+          className={`px-4 py-2 rounded-xl transition cursor-pointer flex items-center gap-2 ${
+            activeTab === 'menu'
+              ? 'bg-forest text-white shadow-xs'
+              : 'bg-white text-charcoal border border-border-warm hover:bg-neutral-50'
+          }`}
+        >
+          <Pizza className="w-3.5 h-3.5" />
+          <span>Menu Catalog</span>
+          <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-white/20">
+            {products.length}
+          </span>
+        </button>
 
         <button
           type="button"
-          onClick={openAddModal}
-          className="bg-primary-green hover:bg-forest text-white text-xs font-bold px-4 py-2.5 rounded-xl flex items-center gap-1.5 shadow-sm transition cursor-pointer self-start sm:self-auto"
+          onClick={() => setActiveTab('loyalty')}
+          className={`px-4 py-2 rounded-xl transition cursor-pointer flex items-center gap-2 ${
+            activeTab === 'loyalty'
+              ? 'bg-primary-green text-white shadow-xs'
+              : 'bg-white text-charcoal border border-border-warm hover:bg-neutral-50'
+          }`}
         >
-          <Plus className="w-4 h-4" />
-          <span>Add New Product</span>
+          <span className="text-sm">🎁</span>
+          <span>Customer Loyalty Program</span>
         </button>
+
+        <Link
+          href="/admin/categories"
+          className="px-4 py-2 rounded-xl bg-white text-charcoal border border-border-warm hover:bg-neutral-50 transition flex items-center gap-1.5"
+        >
+          <span>Categories ({categories.length})</span>
+        </Link>
+
+        <Link
+          href="/admin/coupons"
+          className="px-4 py-2 rounded-xl bg-white text-charcoal border border-border-warm hover:bg-neutral-50 transition flex items-center gap-1.5"
+        >
+          <span>Coupons & Offers</span>
+        </Link>
       </div>
+
+      {activeTab === 'loyalty' ? (
+        <LoyaltyManagementTab />
+      ) : (
+        <>
+          {/* Top Banner */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-3xl border border-border-warm shadow-xs">
+            <div>
+              <div className="flex items-center gap-2">
+                <Pizza className="w-5 h-5 text-primary-green" />
+                <h1 className="text-xl sm:text-2xl font-black text-forest font-serif">
+                  Menu & Product Catalog
+                </h1>
+              </div>
+              <p className="text-xs text-muted-gray mt-1">
+                Manage recipes, individual variant prices, stock availability, and price verification approvals.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={openAddModal}
+              className="bg-primary-green hover:bg-forest text-white text-xs font-bold px-4 py-2.5 rounded-xl flex items-center gap-1.5 shadow-sm transition cursor-pointer self-start sm:self-auto"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Add New Product</span>
+            </button>
+          </div>
 
       {/* Filter Toolbar */}
       <div className="bg-white p-4 rounded-3xl border border-border-warm shadow-xs space-y-3">
@@ -863,6 +921,8 @@ export default function AdminMenuPage() {
             </div>
           </div>
         </div>
+      )}
+        </>
       )}
 
     </div>
