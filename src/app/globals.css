@@ -1,0 +1,109 @@
+@import "tailwindcss";
+
+:root {
+  --font-inter: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+  
+  /* Pizza Harrison Design System Brand Colors */
+  --color-forest: #123D2B;
+  --color-primary-green: #176B45;
+  --color-accent-green: #2E9D63;
+  --color-tomato: #E5483F;
+  --color-warm-cream: #FFF9F0;
+  --color-cream-card: #FFFDF8;
+  --color-charcoal: #20251F;
+  --color-muted-gray: #6B7280;
+  --color-border-warm: #EFE6D8;
+  --color-gold: #D97706;
+
+  --background: var(--color-warm-cream);
+  --foreground: var(--color-charcoal);
+}
+
+body {
+  background-color: var(--color-warm-cream);
+  color: var(--color-charcoal);
+  font-family: var(--font-inter);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom Utilities */
+.bg-forest { background-color: var(--color-forest); }
+.bg-primary-green { background-color: var(--color-primary-green); }
+.bg-accent-green { background-color: var(--color-accent-green); }
+.bg-tomato { background-color: var(--color-tomato); }
+.bg-warm-cream { background-color: var(--color-warm-cream); }
+.bg-cream-card { background-color: var(--color-cream-card); }
+.bg-charcoal { background-color: var(--color-charcoal); }
+
+.text-forest { color: var(--color-forest); }
+.text-primary-green { color: var(--color-primary-green); }
+.text-accent-green { color: var(--color-accent-green); }
+.text-tomato { color: var(--color-tomato); }
+.text-charcoal { color: var(--color-charcoal); }
+.text-muted-gray { color: var(--color-muted-gray); }
+
+.border-warm { border-color: var(--color-border-warm); }
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+::-webkit-scrollbar-track {
+  background: #F3ECE1;
+}
+::-webkit-scrollbar-thumb {
+  background: #C8B9A6;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #176B45;
+}
+
+/* Veg / Non-Veg Icons */
+.veg-badge {
+  border: 1.5px solid #2E9D63;
+  border-radius: 4px;
+  padding: 2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+}
+.veg-dot {
+  width: 8px;
+  height: 8px;
+  background-color: #2E9D63;
+  border-radius: 50%;
+}
+
+.non-veg-badge {
+  border: 1.5px solid #E5483F;
+  border-radius: 4px;
+  padding: 2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+}
+.non-veg-dot {
+  width: 8px;
+  height: 8px;
+  background-color: #E5483F;
+  border-radius: 50%;
+}
+
+/* Subtle Shimmer for Skeletons */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.animate-shimmer {
+  background: linear-gradient(90deg, #F0E8DD 25%, #FBF6EE 50%, #F0E8DD 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}

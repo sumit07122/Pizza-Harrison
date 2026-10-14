@@ -1,0 +1,291 @@
+// Pizza Harrison - Unified Domain Type Definitions
+// Exact paise representation for all financial values (1 INR = 100 paise)
+
+export type BranchId = 'pali_khera' | 'gla_university';
+
+export type StaffRole = 'owner' | 'manager' | 'order_staff' | 'kitchen_staff';
+export type UserRole = 'customer' | StaffRole;
+
+export type OrderType = 'delivery' | 'pickup' | 'dine_in';
+
+export type OrderStatus =
+  | 'placed'
+  | 'confirmed'
+  | 'preparing'
+  | 'out_for_delivery'
+  | 'ready_for_pickup'
+  | 'completed'
+  | 'cancelled';
+
+export type PaymentMethod = 'cod' | 'pay_at_counter' | 'upi_qr' | 'online';
+
+export type PaymentStatus = 'pending' | 'completed' | 'failed' | 'refunded';
+
+export type BookingStatus = 'requested' | 'confirmed' | 'rejected' | 'seated' | 'cancelled';
+
+export type DiscountType = 'percentage' | 'flat' | 'bogo' | 'combo';
+
+export type AddonCategory = 'extra_cheese' | 'veg_toppings' | 'sauces' | 'dips';
+
+export interface Profile {
+  id: string;
+  full_name: string;
+  phone?: string;
+  email?: string;
+  role: UserRole;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Category {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string;
+  image_url?: string;
+  sort_order: number;
+  is_active: boolean;
+}
+
+export interface ProductVariant {
+  id: string;
+  product_id: string;
+  size_name: string; // e.g. 'Regular 7"', 'Medium 9"', 'Large 12"'
+  price_paise: number;
+  is_default: boolean;
+  is_available: boolean;
+}
+
+export interface CrustOption {
+  id: string;
+  name: string; // 'New Hand Tossed', 'Cheese Burst', 'Fresh Pan', 'Thin Crust'
+  description?: string;
+  price_paise: number;
+  is_default: boolean;
+  is_available: boolean;
+}
+
+export interface Addon {
+  id: string;
+  name: string;
+  category: AddonCategory;
+  price_paise: number;
+  is_available: boolean;
+}
+
+export interface Product {
+  id: string;
+  category_id: string;
+  name: string;
+  slug: string;
+  description: string;
+  image_url?: string;
+  is_veg: boolean;
+  is_spicy: boolean;
+  is_bestseller: boolean;
+  is_featured: boolean;
+  is_available: boolean;
+  is_price_verified: boolean; // Must be true before product can be published
+  base_price_paise: number;
+  sort_order: number;
+  variants?: ProductVariant[];
+  category?: Category;
+}
+
+export interface CartItemAddon {
+  id: string;
+  name: string;
+  price_paise: number;
+}
+
+export interface CartItem {
+  id: string;
+  product: Product;
+  selectedVariant?: ProductVariant;
+  selectedCrust?: CrustOption;
+  selectedAddons: CartItemAddon[];
+  specialInstructions?: string;
+  unitPricePaise: number;
+  quantity: number;
+  totalPricePaise: number;
+}
+
+export interface OrderItem {
+  id: string;
+  order_id: string;
+  product_id: string | null;
+  product_name: string;
+  variant_name?: string;
+  crust_name?: string;
+  unit_price_paise: number;
+  quantity: number;
+  addons_json: Array<{ name: string; price_paise: number }>;
+  item_total_paise: number;
+}
+
+export interface Order {
+  id: string;
+  order_number: string; // e.g. 'PH-20261014-9481'
+  customer_id?: string | null;
+  customer_name: string;
+  customer_phone: string;
+  customer_email?: string;
+  order_type: OrderType;
+  branch: BranchId;
+  delivery_address?: string;
+  delivery_landmark?: string;
+  delivery_instructions?: string;
+  status: OrderStatus;
+  payment_method: PaymentMethod;
+  payment_status: PaymentStatus;
+  subtotal_paise: number;
+  discount_paise: number;
+  delivery_fee_paise: number;
+  tax_paise: number;
+  packaging_fee_paise: number;
+  total_paise: number;
+  refunded_paise?: number;
+  applied_coupon_code?: string;
+  notes?: string;
+  internal_notes?: string;
+  cancellation_reason?: string;
+  cancelled_by?: string;
+  items?: OrderItem[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OrderStatusHistory {
+  id: string;
+  order_id: string;
+  old_status?: OrderStatus;
+  new_status: OrderStatus;
+  changed_by?: string;
+  notes?: string;
+  created_at: string;
+}
+
+export interface Booking {
+  id: string;
+  booking_reference: string; // e.g. 'TB-20261014-412'
+  customer_name: string;
+  customer_phone: string;
+  customer_email?: string;
+  branch: BranchId;
+  guest_count: number;
+  booking_date: string; // YYYY-MM-DD
+  booking_time: string; // HH:MM
+  seating_preference: string;
+  special_requests?: string;
+  status: BookingStatus;
+  staff_notes?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Coupon {
+  id: string;
+  code: string;
+  description: string;
+  discount_type: DiscountType;
+  discount_value: number; // percentage (e.g. 20) or flat paise (e.g. 10000 = ₹100)
+  min_order_paise: number;
+  max_discount_paise?: number | null;
+  eligible_categories?: string[]; // category IDs or empty for all
+  eligible_products?: string[];   // product IDs or empty for all
+  terms_conditions?: string;
+  max_uses?: number | null;
+  current_uses: number;
+  is_active: boolean;
+  valid_from: string;
+  valid_until?: string | null;
+}
+
+export interface CouponValidationResult {
+  valid: boolean;
+  code: string;
+  discountPaise: number;
+  message: string;
+  coupon?: Coupon;
+}
+
+export interface CustomerSummary {
+  phone: string;
+  name: string;
+  email?: string;
+  total_orders: number;
+  total_spent_paise: number;
+  last_order_date: string;
+  is_repeat: boolean;
+}
+
+export interface Review {
+  id: string;
+  customer_name: string;
+  rating: number; // 1 to 5
+  comment: string;
+  branch: BranchId;
+  is_approved: boolean;
+  order_id?: string;
+  created_at: string;
+}
+
+export interface AuditLog {
+  id: string;
+  user_id?: string;
+  user_name?: string;
+  action: string;
+  entity_type: string;
+  entity_id?: string;
+  details?: string;
+  old_state_json?: any;
+  new_state_json?: any;
+  ip_address?: string;
+  created_at: string;
+}
+
+export interface BranchDetails {
+  id: BranchId;
+  name: string;
+  address: string;
+  phone: string;
+  opens_at: string;
+  closes_at: string;
+  is_open: boolean;
+  has_dine_in: boolean;
+  google_maps_url: string;
+}
+
+export interface HolidayClosure {
+  id: string;
+  date: string; // YYYY-MM-DD
+  reason: string;
+  branch: BranchId | 'all';
+}
+
+export interface RestaurantSettings {
+  business_name: string;
+  tagline: string;
+  city: string;
+  primary_phone: string;
+  whatsapp_number: string;
+  support_email: string;
+  currency: 'INR';
+  timezone: 'Asia/Kolkata';
+  free_delivery_threshold_paise: number;
+  base_delivery_fee_paise: number;
+  gst_percentage: number;
+  packaging_fee_paise: number;
+  estimated_prep_time_minutes: number;
+  is_online_ordering_enabled: boolean;
+  is_table_booking_enabled: boolean;
+  enabled_payment_methods: {
+    cod: boolean;
+    pay_at_counter: boolean;
+    upi_qr: boolean;
+    online_gateway: boolean;
+  };
+  holiday_closures: HolidayClosure[];
+  privacy_data_retention_days: number;
+}

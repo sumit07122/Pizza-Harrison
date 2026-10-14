@@ -1,0 +1,187 @@
+'use client';
+
+import React from 'react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import {
+  LayoutDashboard,
+  UtensilsCrossed,
+  ChefHat,
+  CalendarCheck,
+  Pizza,
+  FolderTree,
+  Tag,
+  Users,
+  BarChart3,
+  UserCog,
+  Star,
+  Settings,
+  ClipboardList,
+  Store,
+  ChevronLeft,
+  ChevronRight,
+  ShieldCheck,
+  X,
+} from 'lucide-react';
+
+interface AdminSidebarProps {
+  isOpen: boolean;
+  onClose?: () => void;
+  collapsed: boolean;
+  onToggleCollapse: () => void;
+}
+
+export function AdminSidebar({
+  isOpen,
+  onClose,
+  collapsed,
+  onToggleCollapse,
+}: AdminSidebarProps) {
+  const pathname = usePathname();
+
+  const navSections = [
+    {
+      title: 'Operations',
+      items: [
+        { label: 'Overview', href: '/admin', icon: LayoutDashboard },
+        { label: 'Order Processing', href: '/admin/orders', icon: UtensilsCrossed },
+        { label: 'Kitchen Display (KDS)', href: '/admin/kitchen', icon: ChefHat },
+        { label: 'Table Bookings', href: '/admin/bookings', icon: CalendarCheck },
+      ],
+    },
+    {
+      title: 'Catalog & Growth',
+      items: [
+        { label: 'Menu & Prices', href: '/admin/menu', icon: Pizza },
+        { label: 'Categories', href: '/admin/categories', icon: FolderTree },
+        { label: 'Coupons & Promos', href: '/admin/coupons', icon: Tag },
+        { label: 'Customer Directory', href: '/admin/customers', icon: Users },
+        { label: 'Reviews Moderation', href: '/admin/reviews', icon: Star },
+      ],
+    },
+    {
+      title: 'Governance & Settings',
+      items: [
+        { label: 'Analytics & Reports', href: '/admin/analytics', icon: BarChart3 },
+        { label: 'Staff & Roles (RBAC)', href: '/admin/staff', icon: UserCog },
+        { label: 'Restaurant Settings', href: '/admin/settings', icon: Settings },
+        { label: 'System Audit Logs', href: '/admin/audit-logs', icon: ClipboardList },
+      ],
+    },
+  ];
+
+  return (
+    <>
+      {/* Mobile Backdrop */}
+      {isOpen && (
+        <div
+          onClick={onClose}
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden backdrop-blur-xs"
+        />
+      )}
+
+      <aside
+        className={`fixed top-0 bottom-0 left-0 z-50 bg-[#161B16] text-[#F3EFE6] border-r border-[#2C352C] flex flex-col justify-between transition-all duration-300 ${
+          collapsed ? 'w-20' : 'w-64'
+        } ${
+          isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+        }`}
+      >
+        {/* Top Header */}
+        <div className="flex-1 overflow-y-auto custom-scrollbar">
+          <div className="h-16 flex items-center justify-between px-4 border-b border-[#2C352C] sticky top-0 bg-[#161B16] z-10">
+            <Link href="/admin" className="flex items-center gap-2.5 overflow-hidden">
+              <div className="w-9 h-9 rounded-xl bg-primary-green flex items-center justify-center text-white shrink-0 font-bold text-lg shadow-sm">
+                🍕
+              </div>
+              {!collapsed && (
+                <div className="truncate">
+                  <div className="text-sm font-black font-serif tracking-tight text-white">
+                    Pizza Harrison
+                  </div>
+                  <div className="text-[10px] text-accent-green uppercase font-bold tracking-wider">
+                    Ops & KDS Console
+                  </div>
+                </div>
+              )}
+            </Link>
+
+            {/* Mobile Close Button */}
+            <button
+              onClick={onClose}
+              className="lg:hidden p-1.5 text-neutral-400 hover:text-white"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Navigation Links */}
+          <nav className="p-3 space-y-4">
+            {navSections.map((section, sIdx) => (
+              <div key={sIdx} className="space-y-1">
+                {!collapsed && (
+                  <div className="px-3 text-[10px] uppercase font-black text-neutral-400 tracking-wider mb-1">
+                    {section.title}
+                  </div>
+                )}
+                {section.items.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = pathname === item.href;
+
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={onClose}
+                      className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold transition ${
+                        isActive
+                          ? 'bg-primary-green text-white shadow-sm'
+                          : 'text-neutral-300 hover:bg-[#232B23] hover:text-white'
+                      } ${collapsed ? 'justify-center' : ''}`}
+                      title={collapsed ? item.label : undefined}
+                    >
+                      <Icon className="w-4 h-4 shrink-0" />
+                      {!collapsed && <span className="truncate">{item.label}</span>}
+                    </Link>
+                  );
+                })}
+              </div>
+            ))}
+          </nav>
+        </div>
+
+        {/* Bottom Profile & Toggle */}
+        <div className="p-3 border-t border-[#2C352C] space-y-2 bg-[#161B16]">
+          {/* Back to Public Storefront */}
+          <Link
+            href="/"
+            className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs text-neutral-400 hover:text-white hover:bg-[#232B23] transition font-semibold ${
+              collapsed ? 'justify-center' : ''
+            }`}
+            title="View Public Storefront"
+          >
+            <Store className="w-4 h-4 shrink-0 text-accent-green" />
+            {!collapsed && <span>Customer Storefront</span>}
+          </Link>
+
+          {/* Desktop Collapse Toggle */}
+          <div className="hidden lg:flex items-center justify-between pt-2 border-t border-[#2C352C]/60 text-xs text-neutral-400">
+            {!collapsed && (
+              <div className="flex items-center gap-1.5 text-[11px]">
+                <ShieldCheck className="w-3.5 h-3.5 text-primary-green" />
+                <span>Authorized Staff</span>
+              </div>
+            )}
+            <button
+              onClick={onToggleCollapse}
+              className="p-1.5 rounded-lg hover:bg-[#232B23] text-neutral-400 hover:text-white transition mx-auto cursor-pointer"
+              title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            >
+              {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+            </button>
+          </div>
+        </div>
+      </aside>
+    </>
+  );
+}
