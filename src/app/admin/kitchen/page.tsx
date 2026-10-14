@@ -81,10 +81,15 @@ export default function KitchenDisplayPage() {
     : orders.filter((o) => o.branch === selectedBranch);
 
   // Kitchen Display Categories (Strictly NO prices or financials displayed)
+  // Hide unconfirmed COD orders from the kitchen until staff confirms phone ownership
   const incomingConfirmed = branchFiltered.filter(
-    (o) => o.status === 'placed' || o.status === 'confirmed'
+    (o) =>
+      (o.status === 'placed' || o.status === 'confirmed') &&
+      o.confirmation_status !== 'pending_confirmation'
   );
-  const preparingOven = branchFiltered.filter((o) => o.status === 'preparing');
+  const preparingOven = branchFiltered.filter(
+    (o) => o.status === 'preparing' && o.confirmation_status !== 'pending_confirmation'
+  );
   const readyHandoff = branchFiltered.filter(
     (o) => o.status === 'out_for_delivery' || o.status === 'ready_for_pickup'
   );

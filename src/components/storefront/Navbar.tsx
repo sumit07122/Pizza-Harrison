@@ -13,14 +13,17 @@ import {
   Sparkles,
   Search,
   CheckCircle2,
+  User,
 } from 'lucide-react';
 import { useCart } from '@/lib/store/cart-context';
+import { useCustomerAuth } from '@/lib/store/customer-auth-context';
 import { formatINR } from '@/lib/pricing';
 import { RESTAURANT_PHONE, getClickToCallUrl } from '@/lib/whatsapp';
 
 export function Navbar() {
   const pathname = usePathname();
   const { itemCount, totalPaise, openCartDrawer, branch, setBranch } = useCart();
+  const { customer, isAuthenticated } = useCustomerAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [copiedCoupon, setCopiedCoupon] = useState(false);
 
@@ -170,6 +173,18 @@ export function Navbar() {
               )}
             </button>
 
+            {/* Customer Account / Sign In */}
+            <Link
+              href={isAuthenticated ? "/account" : "/login"}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-bold border transition text-forest bg-warm-cream/60 hover:bg-forest hover:text-white border-border-warm hover:border-forest"
+              aria-label={isAuthenticated ? "Customer Account" : "Sign In"}
+            >
+              <User className="w-4 h-4 text-primary-green" />
+              <span className="hidden sm:inline">
+                {isAuthenticated ? ((customer?.full_name || customer?.name || 'Account').split(' ')[0]) : 'Sign In'}
+              </span>
+            </Link>
+
             {/* Admin Portal Shortcut */}
             <Link
               href="/admin"
@@ -192,6 +207,30 @@ export function Navbar() {
         {/* Mobile Slide-down Navigation Menu */}
         {mobileMenuOpen && (
           <div className="lg:hidden bg-warm-cream border-b border-border-warm px-4 pt-3 pb-6 space-y-3">
+            {/* Mobile Customer Sign In / Account button */}
+            <Link
+              href={isAuthenticated ? "/account" : "/login"}
+              onClick={() => setMobileMenuOpen(false)}
+              className="flex items-center justify-between bg-white px-3.5 py-2.5 rounded-lg border border-border-warm text-sm font-bold text-forest shadow-2xs"
+            >
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-full bg-forest text-warm-cream flex items-center justify-center">
+                  <User className="w-4 h-4 text-warm-cream" />
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-forest leading-tight">
+                    {isAuthenticated ? (customer?.full_name || customer?.name || 'My Account') : 'Sign In / Register'}
+                  </div>
+                  <div className="text-[10px] text-muted-gray font-normal">
+                    {isAuthenticated ? `+91 ${customer?.phone}` : 'Orders, loyalty points & reorders'}
+                  </div>
+                </div>
+              </div>
+              <span className="text-xs text-primary-green font-bold">
+                {isAuthenticated ? 'Profile →' : 'Log In →'}
+              </span>
+            </Link>
+
             {/* Mobile Branch Selector */}
             <div className="flex items-center justify-between bg-white px-3 py-2 rounded-lg border border-border-warm">
               <span className="text-xs font-semibold text-muted-gray flex items-center gap-1">

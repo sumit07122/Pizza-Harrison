@@ -27,6 +27,10 @@ import {
   LoyaltyLedgerEntry,
   DailyChecklistRecord,
   DailyChecklistItem,
+  CustomerAccount,
+  CustomerAddress,
+  CustomerSession,
+  PhoneVerificationRequest,
 } from '../types';
 import {
   INITIAL_CATEGORIES,
@@ -50,9 +54,19 @@ import {
   INITIAL_DAILY_CHECKLISTS,
   DEFAULT_OPENING_TASKS,
   DEFAULT_CLOSING_TASKS,
+  INITIAL_CUSTOMERS,
 } from './mock-data';
 import { getSupabaseServerClient } from '../supabase/server';
 import { calculateFullPricing } from '../pricing';
+import {
+  hashPassword,
+  verifyPassword,
+  generateSecureToken,
+  generateSecureOtp,
+  hashOtp,
+  timingSafeMatch,
+} from '../security/crypto';
+import { rateLimiter, RATE_LIMITS } from '../security/rate-limit';
 
 // Global singleton in-memory state for development & fallback mode
 class MemoryDataStore {
@@ -75,6 +89,10 @@ class MemoryDataStore {
   loyaltyAccounts: LoyaltyAccount[] = JSON.parse(JSON.stringify(INITIAL_LOYALTY_ACCOUNTS));
   loyaltyLedger: LoyaltyLedgerEntry[] = JSON.parse(JSON.stringify(INITIAL_LOYALTY_LEDGER));
   dailyChecklists: DailyChecklistRecord[] = JSON.parse(JSON.stringify(INITIAL_DAILY_CHECKLISTS));
+  customers: CustomerAccount[] = JSON.parse(JSON.stringify(INITIAL_CUSTOMERS));
+  customerSessions: CustomerSession[] = [];
+  phoneVerifications: PhoneVerificationRequest[] = [];
+  orderIdempotencyKeys: Map<string, { order: Order; timestamp: number }> = new Map();
 }
 
 const globalForStore = globalThis as unknown as { pizzaStore: MemoryDataStore };
@@ -226,10 +244,11 @@ export async function validateCouponCode(
 // --- TRUSTED ORDER CREATION & LIFECYCLE ---
 
 export interface CreateOrderPayload {
+  customer_id?: string;
   customer_name: string;
   customer_phone: string;
   customer_email?: string;
-  order_type: 'delivery' | 'pickup';
+  order_type: 'delivery' | 'pickup' | 'dine_in';
   branch: 'pali_khera' | 'gla_university';
   delivery_address?: string;
   delivery_landmark?: string;
@@ -237,6 +256,8 @@ export interface CreateOrderPayload {
   payment_method: 'cod' | 'pay_at_counter' | 'upi_qr' | 'online';
   applied_coupon_code?: string;
   notes?: string;
+  idempotency_key?: string;
+  phone_verification_token?: string;
   items: Array<{
     product_id: string;
     variant_size_name?: string;
@@ -245,6 +266,58 @@ export interface CreateOrderPayload {
     quantity: number;
     special_instructions?: string;
   }>;
+}
+
+/**
+ * Verify if a phone number has been authenticated or verified via OTP.
+ */
+export async function verifyCustomerPhoneOwnership(
+  phone: string,
+  customerId?: string,
+  token?: string
+): Promise<boolean> {
+  const cleanPhone = phone.replace(/\D/g, '');
+
+  // 1. Check if token matches an active customer session
+  if (token) {
+    const session = memoryStore.customerSessions.find(
+      (s) => s.token === token && s.phone === cleanPhone && s.expires_at > Date.now()
+    );
+    if (session) return true;
+
+    // Check if token matches a valid phone verification request
+    const ver = memoryStore.phoneVerifications.find(
+      (v) => v.id === token && v.phone === cleanPhone && v.verified && v.expires_at > Date.now()
+    );
+    if (ver) return true;
+  }
+
+  // 2. Check if customerId belongs to a verified registered customer
+  if (customerId) {
+    const cust = memoryStore.customers.find((c) => c.id === customerId && c.phone === cleanPhone);
+    if (cust && cust.phone_verified) return true;
+  }
+
+  // 3. Check if phone is in verified registered customer database
+  const knownCustomer = memoryStore.customers.find((c) => c.phone === cleanPhone);
+  if (knownCustomer && knownCustomer.phone_verified) {
+    return true;
+  }
+
+  // 4. Check if phone was verified via recent OTP verification within validity window
+  const recentVerified = memoryStore.phoneVerifications.find(
+    (v) => v.phone === cleanPhone && v.verified && v.expires_at > Date.now()
+  );
+  if (recentVerified) {
+    return true;
+  }
+
+  // 5. In test / dev environments when setting is explicitly disabled
+  if (memoryStore.settings.require_phone_verification === false) {
+    return true;
+  }
+
+  return false;
 }
 
 export async function createOrderServerTrusted(
@@ -273,7 +346,38 @@ export async function createOrderServerTrusted(
     };
   }
 
-  // 2. Fetch current prices & build immutable items snapshot
+  // 2. Rate Limiting Protection (Anti-Abuse)
+  const rateKey = `order:${cleanPhone}`;
+  const rateCheck = rateLimiter.check(rateKey, RATE_LIMITS.ORDER_CREATE.limit, RATE_LIMITS.ORDER_CREATE.windowMs);
+  if (!rateCheck.allowed) {
+    return {
+      success: false,
+      error: `Too many order attempts in a short period. Please wait ${Math.ceil(rateCheck.resetMs / 60000)} minute(s) before trying again.`,
+    };
+  }
+
+  // 3. Idempotency Check (Anti-Duplicate Submission)
+  if (payload.idempotency_key) {
+    const existingEntry = memoryStore.orderIdempotencyKeys.get(payload.idempotency_key);
+    if (existingEntry && Date.now() - existingEntry.timestamp < 10 * 60 * 1000) {
+      return { success: true, order: existingEntry.order };
+    }
+  }
+
+  // 4. Check Phone Verification Enforcement
+  const isPhoneVerified = await verifyCustomerPhoneOwnership(
+    cleanPhone,
+    payload.customer_id,
+    payload.phone_verification_token
+  );
+  if (!isPhoneVerified) {
+    return {
+      success: false,
+      error: 'Please verify your mobile number with OTP before submitting your order.',
+    };
+  }
+
+  // 5. Fetch current prices & build immutable items snapshot
   const orderItemsSnapshot: any[] = [];
   const itemsForPricing: Array<{ unitPricePaise: number; quantity: number }> = [];
 
@@ -338,28 +442,73 @@ export async function createOrderServerTrusted(
     });
   }
 
-  // 3. Validate coupon if supplied
+  // 6. Validate coupon if supplied with per-customer limit check
   let verifiedCoupon: Coupon | null = null;
   if (payload.applied_coupon_code) {
     const subtotal = itemsForPricing.reduce((sum, it) => sum + it.unitPricePaise * it.quantity, 0);
     const couponValidation = await validateCouponCode(payload.applied_coupon_code, subtotal);
-    if (couponValidation.valid && couponValidation.coupon) {
+    if (!couponValidation.valid) {
+      return { success: false, error: couponValidation.message };
+    }
+    if (couponValidation.coupon) {
+      // Check per-customer usage limit
+      const maxPerCust = couponValidation.coupon.max_uses_per_customer || 1;
+      const priorUses = memoryStore.orders.filter(
+        (o) =>
+          o.customer_phone === cleanPhone &&
+          o.applied_coupon_code?.toUpperCase() === couponValidation.coupon!.code.toUpperCase() &&
+          o.status !== 'cancelled'
+      ).length;
+
+      if (priorUses >= maxPerCust) {
+        return {
+          success: false,
+          error: `Coupon ${couponValidation.coupon.code} is limited to ${maxPerCust} use(s) per customer. It has already been redeemed on a previous order.`,
+        };
+      }
       verifiedCoupon = couponValidation.coupon;
     }
   }
 
-  // 4. Calculate final authoritative bill breakdown
+  // 7. Calculate final authoritative bill breakdown
   const bill = calculateFullPricing(itemsForPricing, payload.order_type, verifiedCoupon);
 
-  // 5. Generate human-readable order number: PH-YYYYMMDD-XXXX
+  // 8. Anti-Fraud & COD Confirmation Policy
+  let confirmationStatus: 'confirmed' | 'pending_confirmation' = 'confirmed';
+  let confirmationReason: string | undefined = undefined;
+
+  if (payload.payment_method === 'cod') {
+    if (memoryStore.settings.enabled_payment_methods?.cod === false) {
+      return { success: false, error: 'Cash on Delivery (COD) is currently disabled by store management.' };
+    }
+
+    const threshold = memoryStore.settings.cod_confirmation_threshold_paise || 150000; // ₹1,500
+    const priorCompleted = memoryStore.orders.filter(
+      (o) => o.customer_phone === cleanPhone && o.status === 'completed'
+    );
+    const isFirstTime = priorCompleted.length === 0;
+    const isHighValue = bill.total_paise >= threshold;
+
+    if (isFirstTime || isHighValue) {
+      confirmationStatus = 'pending_confirmation';
+      confirmationReason = isFirstTime && isHighValue
+        ? `First-time COD customer & high-value order (₹${bill.total_paise / 100} >= ₹${threshold / 100}). Staff phone verification required before kitchen prep.`
+        : isFirstTime
+        ? 'First-time COD customer. Staff telephone confirmation required before baking.'
+        : `High-value COD order (₹${bill.total_paise / 100} >= ₹${threshold / 100}). Staff verification required before baking.`;
+    }
+  }
+
+  // 9. Generate human-readable order number: PH-YYYYMMDD-XXXX
   const today = new Date();
   const dateStr = today.toISOString().slice(0, 10).replace(/-/g, '');
   const randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
   const orderNumber = `PH-${dateStr}-${randomSuffix}`;
 
   const newOrder: Order = {
-    id: `ord-${Date.now()}`,
+    id: `ord-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
     order_number: orderNumber,
+    customer_id: payload.customer_id,
     customer_name: payload.customer_name.trim(),
     customer_phone: cleanPhone,
     customer_email: payload.customer_email?.trim(),
@@ -368,7 +517,10 @@ export async function createOrderServerTrusted(
     delivery_address: payload.delivery_address?.trim(),
     delivery_landmark: payload.delivery_landmark?.trim(),
     delivery_instructions: payload.delivery_instructions?.trim(),
-    status: 'placed',
+    status: confirmationStatus === 'pending_confirmation' ? 'placed' : 'confirmed',
+    confirmation_status: confirmationStatus,
+    confirmation_reason: confirmationReason,
+    idempotency_key: payload.idempotency_key,
     payment_method: payload.payment_method,
     payment_status: 'pending',
     subtotal_paise: bill.subtotal_paise,
@@ -379,15 +531,24 @@ export async function createOrderServerTrusted(
     total_paise: bill.total_paise,
     applied_coupon_code: bill.applied_coupon_code,
     notes: payload.notes?.trim(),
+    internal_notes: confirmationReason ? `[COD Verification Flag] ${confirmationReason}` : undefined,
     items: orderItemsSnapshot,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   };
 
-  // 6. Save order
+  // 10. Cache idempotency key
+  if (payload.idempotency_key) {
+    memoryStore.orderIdempotencyKeys.set(payload.idempotency_key, {
+      order: newOrder,
+      timestamp: Date.now(),
+    });
+  }
+
+  // 11. Save order to memory store
   memoryStore.orders.unshift(newOrder);
 
-  // Also write to Supabase if configured
+  // 12. Also write to Supabase if configured
   const supabase = getSupabaseServerClient();
   if (supabase) {
     try {
@@ -401,6 +562,7 @@ export async function createOrderServerTrusted(
         delivery_address: newOrder.delivery_address,
         delivery_landmark: newOrder.delivery_landmark,
         status: newOrder.status,
+        confirmation_status: newOrder.confirmation_status,
         payment_method: newOrder.payment_method,
         payment_status: newOrder.payment_status,
         subtotal_paise: newOrder.subtotal_paise,
@@ -1050,7 +1212,11 @@ export function filterOrders(filter: {
 
   // 2. Status filter
   if (filter.status && filter.status !== 'all') {
-    list = list.filter((o) => o.status === filter.status);
+    if (filter.status === 'pending_confirmation') {
+      list = list.filter((o) => o.confirmation_status === 'pending_confirmation');
+    } else {
+      list = list.filter((o) => o.status === filter.status);
+    }
   }
 
   // 3. Branch filter
@@ -1474,6 +1640,7 @@ export function computeAnalytics(
     estimatedGrossProfitPaise,
     avgOrderValuePaise,
     statusDistribution,
+    awaitingConfirmationCount: filteredOrders.filter((o) => o.confirmation_status === 'pending_confirmation').length,
     topSellingProducts,
     salesTrend,
     repeatCustomerRate,
@@ -2106,4 +2273,409 @@ export async function submitDailyChecklist(
 
   return { success: true, record };
 }
+
+// ==========================================
+// CUSTOMER IDENTITY & ACCOUNT REPOSITORY
+// ==========================================
+
+export async function findCustomerByPhone(phone: string): Promise<CustomerAccount | null> {
+  const clean = phone.replace(/\D/g, '');
+  const customer = memoryStore.customers.find((c) => c.phone === clean);
+  return customer ? JSON.parse(JSON.stringify(customer)) : null;
+}
+
+export async function findCustomerById(id: string): Promise<CustomerAccount | null> {
+  const customer = memoryStore.customers.find((c) => c.id === id);
+  return customer ? JSON.parse(JSON.stringify(customer)) : null;
+}
+
+export async function createCustomerAccount(data: {
+  phone: string;
+  full_name: string;
+  email?: string;
+  password?: string;
+}): Promise<{ success: boolean; customer?: CustomerAccount; error?: string }> {
+  const cleanPhone = data.phone.replace(/\D/g, '');
+  if (cleanPhone.length < 10) {
+    return { success: false, error: 'Valid 10-digit Indian mobile number is required.' };
+  }
+  if (!data.full_name || data.full_name.trim().length < 2) {
+    return { success: false, error: 'Full name must be at least 2 characters.' };
+  }
+
+  const existing = memoryStore.customers.find((c) => c.phone === cleanPhone);
+  if (existing) {
+    return { success: false, error: 'An account with this mobile number already exists. Please log in.' };
+  }
+
+  let passwordHash: string | undefined = undefined;
+  if (data.password && data.password.length >= 6) {
+    passwordHash = await hashPassword(data.password);
+  }
+
+  const newCustomer: CustomerAccount = {
+    id: `cust-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+    phone: cleanPhone,
+    phone_verified: true, // Verified via OTP before calling createCustomerAccount
+    full_name: data.full_name.trim(),
+    email: data.email?.trim() || undefined,
+    email_verified: false,
+    password_hash: passwordHash,
+    saved_addresses: [],
+    favorites: [],
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+
+  memoryStore.customers.unshift(newCustomer);
+
+  addAuditLogEntry({
+    user_name: newCustomer.full_name,
+    action: 'CUSTOMER_REGISTERED',
+    entity_type: 'customer',
+    entity_id: newCustomer.id,
+    details: `Customer registered account with verified phone ${cleanPhone}.`,
+  });
+
+  return { success: true, customer: newCustomer };
+}
+
+export async function authenticateCustomerWithPassword(
+  phone: string,
+  password: string
+): Promise<{ success: boolean; customer?: CustomerAccount; error?: string }> {
+  const cleanPhone = phone.replace(/\D/g, '');
+  const rateKey = `login:${cleanPhone}`;
+  const rate = rateLimiter.check(rateKey, RATE_LIMITS.LOGIN.limit, RATE_LIMITS.LOGIN.windowMs);
+
+  if (!rate.allowed) {
+    return {
+      success: false,
+      error: `Too many failed login attempts. Please wait ${Math.ceil(rate.resetMs / 60000)} minute(s) before trying again.`,
+    };
+  }
+
+  const customer = memoryStore.customers.find((c) => c.phone === cleanPhone);
+  if (!customer || !customer.password_hash) {
+    return { success: false, error: 'Invalid mobile number or password.' };
+  }
+
+  const isMatch = await verifyPassword(password, customer.password_hash);
+  if (!isMatch) {
+    return { success: false, error: 'Invalid mobile number or password.' };
+  }
+
+  rateLimiter.reset(rateKey);
+  return { success: true, customer: JSON.parse(JSON.stringify(customer)) };
+}
+
+export async function updateCustomerProfile(
+  customerId: string,
+  data: { full_name?: string; email?: string }
+): Promise<{ success: boolean; customer?: CustomerAccount; error?: string }> {
+  const customer = memoryStore.customers.find((c) => c.id === customerId);
+  if (!customer) {
+    return { success: false, error: 'Customer not found.' };
+  }
+
+  if (data.full_name && data.full_name.trim().length >= 2) {
+    customer.full_name = data.full_name.trim();
+  }
+  if (data.email !== undefined) {
+    customer.email = data.email.trim() || undefined;
+  }
+  customer.updated_at = new Date().toISOString();
+
+  return { success: true, customer: JSON.parse(JSON.stringify(customer)) };
+}
+
+// ==========================================
+// CUSTOMER SESSION MANAGEMENT
+// ==========================================
+
+export async function createCustomerSession(
+  customerId: string,
+  phone: string
+): Promise<CustomerSession> {
+  const token = generateSecureToken(32);
+  const session: CustomerSession = {
+    token,
+    customer_id: customerId,
+    phone: phone.replace(/\D/g, ''),
+    expires_at: Date.now() + 7 * 24 * 60 * 60 * 1000, // 7 days validity
+    created_at: new Date().toISOString(),
+  };
+
+  memoryStore.customerSessions.unshift(session);
+  return session;
+}
+
+export async function validateCustomerSession(
+  token: string
+): Promise<{ valid: boolean; session?: CustomerSession; customer?: CustomerAccount }> {
+  if (!token) return { valid: false };
+
+  const session = memoryStore.customerSessions.find(
+    (s) => s.token === token && s.expires_at > Date.now()
+  );
+  if (!session) return { valid: false };
+
+  const customer = memoryStore.customers.find((c) => c.id === session.customer_id);
+  if (!customer) return { valid: false };
+
+  return {
+    valid: true,
+    session,
+    customer: JSON.parse(JSON.stringify(customer)),
+  };
+}
+
+export async function revokeCustomerSession(token: string): Promise<boolean> {
+  const initialLen = memoryStore.customerSessions.length;
+  memoryStore.customerSessions = memoryStore.customerSessions.filter((s) => s.token !== token);
+  return memoryStore.customerSessions.length < initialLen;
+}
+
+// ==========================================
+// PHONE OTP VERIFICATION SYSTEM
+// ==========================================
+
+export async function createPhoneOtpRequest(phone: string): Promise<{
+  success: boolean;
+  otp?: string;
+  expiresAt: number;
+  provider: string;
+  verificationId?: string;
+  error?: string;
+}> {
+  const cleanPhone = phone.replace(/\D/g, '');
+  if (cleanPhone.length < 10) {
+    return { success: false, expiresAt: 0, provider: 'none', error: 'Valid 10-digit Indian mobile number is required.' };
+  }
+
+  // Rate Limiting Protection (Anti-Abuse)
+  const rateKey = `otp:${cleanPhone}`;
+  const rate = rateLimiter.check(rateKey, RATE_LIMITS.OTP_SEND.limit, RATE_LIMITS.OTP_SEND.windowMs);
+  if (!rate.allowed) {
+    return {
+      success: false,
+      expiresAt: 0,
+      provider: 'rate_limited',
+      error: `Too many OTP requests for this phone number. Please wait ${Math.ceil(rate.resetMs / 60000)} minute(s).`,
+    };
+  }
+
+  const otp = generateSecureOtp();
+  const otpHash = hashOtp(otp, cleanPhone);
+  const expiresAt = Date.now() + 5 * 60 * 1000; // 5 minutes expiration
+  const verificationId = `vreq-${Date.now()}-${generateSecureToken(8)}`;
+
+  const reqRecord: PhoneVerificationRequest = {
+    id: verificationId,
+    phone: cleanPhone,
+    otp_hash: otpHash,
+    expires_at: expiresAt,
+    attempts: 0,
+    verified: false,
+    created_at: Date.now(),
+  };
+
+  memoryStore.phoneVerifications.unshift(reqRecord);
+
+  // Check SMS gateway configuration
+  const hasExternalSms = Boolean(
+    process.env.FAST2SMS_API_KEY ||
+    (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN)
+  );
+
+  const provider = hasExternalSms ? 'configured_gateway' : 'sandbox';
+
+  if (!hasExternalSms) {
+    console.info(`[SMS Sandbox] Generated OTP for +91-${cleanPhone}: ${otp} (Expires in 5 minutes)`);
+  }
+
+  return {
+    success: true,
+    otp: provider === 'sandbox' ? otp : undefined, // In sandbox mode, return for developer ease
+    expiresAt,
+    provider,
+    verificationId,
+  };
+}
+
+export async function verifyPhoneOtp(
+  phone: string,
+  otp: string
+): Promise<{ success: boolean; verificationToken?: string; customer?: CustomerAccount; error?: string }> {
+  const cleanPhone = phone.replace(/\D/g, '');
+  const cleanOtp = otp.trim();
+
+  const reqRecord = memoryStore.phoneVerifications.find(
+    (v) => v.phone === cleanPhone && !v.verified && v.expires_at > Date.now()
+  );
+
+  if (!reqRecord) {
+    return { success: false, error: 'No active OTP request found or verification code expired. Please request a new OTP.' };
+  }
+
+  if (reqRecord.attempts >= 3) {
+    reqRecord.expires_at = 0; // Invalidate
+    return { success: false, error: 'Maximum incorrect verification attempts exceeded. Please request a fresh OTP.' };
+  }
+
+  const computedHash = hashOtp(cleanOtp, cleanPhone);
+  const isMatch = timingSafeMatch(computedHash, reqRecord.otp_hash);
+
+  if (!isMatch) {
+    reqRecord.attempts += 1;
+    const remaining = 3 - reqRecord.attempts;
+    return {
+      success: false,
+      error: `Invalid OTP code. ${remaining > 0 ? `${remaining} attempt(s) remaining.` : 'Code locked.'}`,
+    };
+  }
+
+  // Mark verified
+  reqRecord.verified = true;
+
+  // Check if customer account exists, and mark phone verified
+  let customer = memoryStore.customers.find((c) => c.phone === cleanPhone);
+  if (customer) {
+    customer.phone_verified = true;
+    customer.updated_at = new Date().toISOString();
+  }
+
+  return {
+    success: true,
+    verificationToken: reqRecord.id,
+    customer: customer ? JSON.parse(JSON.stringify(customer)) : undefined,
+  };
+}
+
+// ==========================================
+// SAVED ADDRESSES & FAVORITES
+// ==========================================
+
+export async function saveCustomerAddress(
+  customerId: string,
+  address: Omit<CustomerAddress, 'id'> & { id?: string }
+): Promise<{ success: boolean; customer?: CustomerAccount; error?: string }> {
+  const customer = memoryStore.customers.find((c) => c.id === customerId);
+  if (!customer) return { success: false, error: 'Customer not found.' };
+
+  if (address.is_default) {
+    customer.saved_addresses.forEach((a) => (a.is_default = false));
+  }
+
+  if (address.id) {
+    const existingIdx = customer.saved_addresses.findIndex((a) => a.id === address.id);
+    if (existingIdx >= 0) {
+      customer.saved_addresses[existingIdx] = {
+        ...address,
+        id: address.id,
+      };
+    }
+  } else {
+    customer.saved_addresses.push({
+      ...address,
+      id: `addr-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      is_default: customer.saved_addresses.length === 0 ? true : Boolean(address.is_default),
+    });
+  }
+
+  customer.updated_at = new Date().toISOString();
+  return { success: true, customer: JSON.parse(JSON.stringify(customer)) };
+}
+
+export async function deleteCustomerAddress(
+  customerId: string,
+  addressId: string
+): Promise<{ success: boolean; customer?: CustomerAccount; error?: string }> {
+  const customer = memoryStore.customers.find((c) => c.id === customerId);
+  if (!customer) return { success: false, error: 'Customer not found.' };
+
+  customer.saved_addresses = customer.saved_addresses.filter((a) => a.id !== addressId);
+  customer.updated_at = new Date().toISOString();
+  return { success: true, customer: JSON.parse(JSON.stringify(customer)) };
+}
+
+export async function toggleCustomerFavorite(
+  customerId: string,
+  productId: string
+): Promise<{ success: boolean; favorites: string[]; error?: string }> {
+  const customer = memoryStore.customers.find((c) => c.id === customerId);
+  if (!customer) return { success: false, favorites: [], error: 'Customer not found.' };
+
+  const exists = customer.favorites.includes(productId);
+  if (exists) {
+    customer.favorites = customer.favorites.filter((id) => id !== productId);
+  } else {
+    customer.favorites.push(productId);
+  }
+
+  customer.updated_at = new Date().toISOString();
+  return { success: true, favorites: [...customer.favorites] };
+}
+
+export async function getCustomerOrders(phoneOrCustomerId: string): Promise<Order[]> {
+  const clean = phoneOrCustomerId.replace(/\D/g, '');
+  return memoryStore.orders.filter(
+    (o) => o.customer_phone === clean || o.customer_id === phoneOrCustomerId
+  );
+}
+
+// ==========================================
+// ANTI-FRAUD COD CONFIRMATION ACTIONS
+// ==========================================
+
+export async function confirmPendingOrder(
+  orderId: string,
+  confirmedBy: string = 'Staff Manager'
+): Promise<{ success: boolean; order?: Order; error?: string }> {
+  const order = memoryStore.orders.find((o) => o.id === orderId);
+  if (!order) return { success: false, error: 'Order not found.' };
+
+  order.confirmation_status = 'confirmed';
+  order.status = 'confirmed';
+  order.updated_at = new Date().toISOString();
+  order.internal_notes = order.internal_notes
+    ? `${order.internal_notes} | Verified & confirmed by ${confirmedBy}`
+    : `Verified & confirmed by ${confirmedBy}`;
+
+  addAuditLogEntry({
+    user_name: confirmedBy,
+    action: 'ORDER_COD_CONFIRMED',
+    entity_type: 'order',
+    entity_id: order.id,
+    details: `Staff confirmed COD order #${order.order_number} and released to kitchen queue.`,
+  });
+
+  return { success: true, order };
+}
+
+export async function rejectPendingOrder(
+  orderId: string,
+  reason: string,
+  rejectedBy: string = 'Staff Manager'
+): Promise<{ success: boolean; order?: Order; error?: string }> {
+  const order = memoryStore.orders.find((o) => o.id === orderId);
+  if (!order) return { success: false, error: 'Order not found.' };
+
+  order.confirmation_status = 'rejected';
+  order.status = 'cancelled';
+  order.cancellation_reason = reason;
+  order.cancelled_by = rejectedBy;
+  order.updated_at = new Date().toISOString();
+
+  addAuditLogEntry({
+    user_name: rejectedBy,
+    action: 'ORDER_COD_REJECTED',
+    entity_type: 'order',
+    entity_id: order.id,
+    details: `Staff rejected unconfirmed COD order #${order.order_number}: ${reason}`,
+  });
+
+  return { success: true, order };
+}
+
 

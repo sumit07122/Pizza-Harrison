@@ -145,11 +145,16 @@ export interface OrderItem {
   product_id: string | null;
   product_name: string;
   variant_name?: string;
+  variant?: string;
   crust_name?: string;
+  crust?: string;
   unit_price_paise: number;
   quantity: number;
   addons_json: Array<{ name: string; price_paise: number }>;
+  addons?: Array<{ name: string; price_paise: number }>;
   item_total_paise: number;
+  total_paise?: number;
+  special_instructions?: string;
 }
 
 export interface Order {
@@ -161,10 +166,14 @@ export interface Order {
   customer_email?: string;
   order_type: OrderType;
   branch: BranchId;
+  branch_id?: BranchId;
   delivery_address?: string;
   delivery_landmark?: string;
   delivery_instructions?: string;
   status: OrderStatus;
+  confirmation_status?: 'confirmed' | 'pending_confirmation' | 'rejected';
+  confirmation_reason?: string;
+  idempotency_key?: string;
   payment_method: PaymentMethod;
   payment_status: PaymentStatus;
   subtotal_paise: number;
@@ -173,6 +182,14 @@ export interface Order {
   tax_paise: number;
   packaging_fee_paise: number;
   total_paise: number;
+  pricing?: {
+    total_paise: number;
+    subtotal_paise: number;
+    discount_paise: number;
+    delivery_fee_paise: number;
+    tax_paise: number;
+    packaging_fee_paise: number;
+  };
   refunded_paise?: number;
   applied_coupon_code?: string;
   notes?: string;
@@ -224,6 +241,7 @@ export interface Coupon {
   eligible_products?: string[];   // product IDs or empty for all
   terms_conditions?: string;
   max_uses?: number | null;
+  max_uses_per_customer?: number | null; // e.g. 1 for first-order coupons
   current_uses: number;
   is_active: boolean;
   valid_from: string;
@@ -316,6 +334,8 @@ export interface RestaurantSettings {
   };
   holiday_closures: HolidayClosure[];
   privacy_data_retention_days: number;
+  cod_confirmation_threshold_paise?: number; // e.g. 150000 = ₹1,500
+  require_phone_verification?: boolean;
 }
 
 // ==========================================
@@ -458,4 +478,82 @@ export interface DailyChecklistRecord {
   submitted_at?: string;
   notes?: string;
 }
+
+// ==========================================
+// CUSTOMER IDENTITY, ACCOUNTS & VERIFICATION
+// ==========================================
+
+export interface CustomerAddress {
+  id: string;
+  label: 'Home' | 'Hostel' | 'Office' | 'Other' | string;
+  type?: 'Home' | 'Hostel' | 'Office' | 'Other' | 'Work' | 'home' | 'work' | 'other' | string;
+  address_line: string;
+  street?: string;
+  area?: string;
+  city?: string;
+  pincode?: string;
+  landmark?: string;
+  is_default: boolean;
+}
+
+export interface CustomerAccount {
+  id: string; // e.g. 'cust-179200384'
+  phone: string; // 10-digit Indian phone
+  phone_verified: boolean;
+  full_name: string;
+  name?: string; // alias
+  email?: string;
+  email_verified?: boolean;
+  password_hash?: string; // salt:hash format
+  saved_addresses: CustomerAddress[];
+  favorites: string[]; // product IDs
+  loyalty_stamps?: number;
+  total_orders?: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CustomerSession {
+  token: string;
+  customer_id: string;
+  phone: string;
+  expires_at: number; // timestamp in ms
+  created_at: string;
+}
+
+export interface PhoneVerificationRequest {
+  id: string;
+  phone: string;
+  otp_hash: string;
+  expires_at: number; // timestamp in ms
+  attempts: number;
+  verified: boolean;
+  created_at: number;
+}
+
+export interface CreateOrderPayload {
+  customer_id?: string;
+  customer_name: string;
+  customer_phone: string;
+  customer_email?: string;
+  order_type: OrderType;
+  branch: BranchId;
+  delivery_address?: string;
+  delivery_landmark?: string;
+  delivery_instructions?: string;
+  payment_method: PaymentMethod;
+  applied_coupon_code?: string;
+  notes?: string;
+  idempotency_key?: string;
+  phone_verification_token?: string;
+  items: Array<{
+    product_id: string;
+    variant_size_name?: string;
+    crust_name?: string;
+    addon_ids?: string[];
+    quantity: number;
+    special_instructions?: string;
+  }>;
+}
+
 

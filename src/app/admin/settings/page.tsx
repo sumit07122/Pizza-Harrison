@@ -46,6 +46,8 @@ export default function AdminSettingsPage() {
   const [isOnlineOrderingEnabled, setIsOnlineOrderingEnabled] = useState(true);
   const [isTableBookingEnabled, setIsTableBookingEnabled] = useState(true);
   const [retentionDays, setRetentionDays] = useState('365');
+  const [codConfirmationThresholdRupees, setCodConfirmationThresholdRupees] = useState('1500');
+  const [requirePhoneVerification, setRequirePhoneVerification] = useState(true);
 
   // Payment methods
   const [paymentMethods, setPaymentMethods] = useState({
@@ -83,6 +85,12 @@ export default function AdminSettingsPage() {
         setPaymentMethods(s.enabled_payment_methods);
         setHolidayClosures(s.holiday_closures || []);
         setRetentionDays(s.privacy_data_retention_days.toString());
+        if (s.cod_confirmation_threshold_paise) {
+          setCodConfirmationThresholdRupees((s.cod_confirmation_threshold_paise / 100).toString());
+        }
+        if (s.require_phone_verification !== undefined) {
+          setRequirePhoneVerification(s.require_phone_verification);
+        }
       }
     } catch (e) {
       console.warn('Error fetching settings', e);
@@ -138,6 +146,8 @@ export default function AdminSettingsPage() {
             enabled_payment_methods: paymentMethods,
             holiday_closures: holidayClosures,
             privacy_data_retention_days: parseInt(retentionDays, 10),
+            cod_confirmation_threshold_paise: Math.round(parseFloat(codConfirmationThresholdRupees || '1500') * 100),
+            require_phone_verification: requirePhoneVerification,
           },
           requesterRole: 'owner',
           requesterName: 'Harrison Sharma (Owner)',
@@ -455,6 +465,57 @@ export default function AdminSettingsPage() {
                 <span className="font-bold text-charcoal">{pm.label}</span>
               </label>
             ))}
+          </div>
+        </div>
+
+        {/* Anti-Fake Order & Fraud Safeguards */}
+        <div className="bg-white rounded-3xl p-6 border border-border-warm shadow-xs space-y-4">
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="w-5 h-5 text-primary-green" />
+            <h2 className="text-sm font-black uppercase tracking-wider text-forest">
+              Anti-Fake Order & Fraud Prevention Controls
+            </h2>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="font-bold text-charcoal block mb-1">
+                COD Telephone Confirmation Threshold (₹)
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="50"
+                value={codConfirmationThresholdRupees}
+                onChange={(e) => setCodConfirmationThresholdRupees(e.target.value)}
+                className="w-full p-2.5 border border-border-warm rounded-xl bg-[#FAF7F0] font-mono font-bold text-forest"
+              />
+              <p className="text-[11px] text-muted-gray mt-1 leading-relaxed">
+                COD orders equal to or above this amount, or placed by first-time customers, will be routed to the Confirmation Queue until staff confirms via phone.
+              </p>
+            </div>
+
+            <div className="flex flex-col justify-between p-3.5 rounded-2xl bg-[#FAF7F0] border border-border-warm">
+              <div>
+                <span className="font-bold text-charcoal block">Require Verified Phone (OTP)</span>
+                <span className="text-[11px] text-muted-gray leading-relaxed block mt-0.5">
+                  Customers must verify mobile ownership via genuine SMS OTP before their order is accepted by the kitchen.
+                </span>
+              </div>
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={() => setRequirePhoneVerification(!requirePhoneVerification)}
+                  className={`px-3 py-1.5 rounded-xl font-bold uppercase text-[10px] transition cursor-pointer ${
+                    requirePhoneVerification
+                      ? 'bg-emerald-600 text-white shadow-xs'
+                      : 'bg-red-600 text-white shadow-xs'
+                  }`}
+                >
+                  {requirePhoneVerification ? '🟢 Enforced (Active)' : '🔴 Disabled'}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 

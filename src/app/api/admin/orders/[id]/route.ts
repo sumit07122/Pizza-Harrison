@@ -4,6 +4,8 @@ import {
   cancelOrder,
   addOrderInternalNote,
   updateOrderStatus,
+  confirmPendingOrder,
+  rejectPendingOrder,
 } from '@/lib/data/store';
 
 export async function GET(
@@ -52,6 +54,26 @@ export async function PATCH(
       const res = await addOrderInternalNote(id, note, updatedBy || 'Staff');
       if (!res.success) {
         return NextResponse.json({ error: 'Failed to add internal note.' }, { status: 400 });
+      }
+      return NextResponse.json({ success: true, order: res.order });
+    }
+
+    if (action === 'confirm_cod') {
+      const res = await confirmPendingOrder(id, changedBy || 'Staff');
+      if (!res.success) {
+        return NextResponse.json({ error: res.error }, { status: 400 });
+      }
+      return NextResponse.json({ success: true, order: res.order });
+    }
+
+    if (action === 'reject_cod') {
+      const res = await rejectPendingOrder(
+        id,
+        reason || 'Unconfirmed COD order rejected by staff',
+        cancelledBy || 'Staff'
+      );
+      if (!res.success) {
+        return NextResponse.json({ error: res.error }, { status: 400 });
       }
       return NextResponse.json({ success: true, order: res.order });
     }

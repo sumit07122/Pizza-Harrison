@@ -20,6 +20,7 @@ import {
   Sparkles,
   RotateCcw,
   ClipboardCheck,
+  Phone,
 } from 'lucide-react';
 import { Order } from '@/lib/types';
 import { formatINR } from '@/lib/pricing';
@@ -257,7 +258,8 @@ export default function AdminDashboardPage() {
       </div>
 
       {/* KPI Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+      {/* Primary KPI Metric Cards (5 Core Pillars) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         
         {/* Total Sales (Excluded Cancelled) */}
         <div className="bg-white rounded-3xl p-5 border border-border-warm shadow-xs space-y-2">
@@ -272,7 +274,6 @@ export default function AdminDashboardPage() {
           </div>
           <p className="text-[11px] text-emerald-700 font-medium flex items-center gap-1">
             <span>Gross: {formatINR(analytics?.grossSalesPaise || 0)}</span>
-            <span className="text-muted-gray">| Excl. cancelled</span>
           </p>
         </div>
 
@@ -288,8 +289,45 @@ export default function AdminDashboardPage() {
             {analytics?.totalOrders || 0}
           </div>
           <p className="text-[11px] text-blue-700 font-medium">
-            {analytics?.completedCount || 0} completed & delivered
+            {analytics?.completedCount || 0} delivered
           </p>
+        </div>
+
+        {/* Awaiting Confirmation (COD Risk Protection) */}
+        <div
+          className={`rounded-3xl p-5 border shadow-xs space-y-2 transition ${
+            (analytics?.awaitingConfirmationCount || 0) > 0
+              ? 'bg-amber-50/90 border-amber-300 ring-2 ring-amber-400/50'
+              : 'bg-white border-border-warm'
+          }`}
+        >
+          <div className="flex items-center justify-between text-muted-gray text-xs font-bold uppercase tracking-wider">
+            <span>Awaiting Call</span>
+            <div
+              className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                (analytics?.awaitingConfirmationCount || 0) > 0
+                  ? 'bg-amber-500 text-white animate-pulse'
+                  : 'bg-neutral-100 text-neutral-500'
+              }`}
+            >
+              <Phone className="w-4 h-4" />
+            </div>
+          </div>
+          <div
+            className={`text-2xl font-black ${
+              (analytics?.awaitingConfirmationCount || 0) > 0 ? 'text-amber-900' : 'text-forest'
+            }`}
+          >
+            {analytics?.awaitingConfirmationCount || 0}
+          </div>
+          <div className="text-[11px] font-semibold text-amber-800 flex items-center justify-between">
+            <span>{(analytics?.awaitingConfirmationCount || 0) > 0 ? 'COD Risk queue' : 'Queue clear'}</span>
+            {(analytics?.awaitingConfirmationCount || 0) > 0 && (
+              <Link href="/admin/orders?status=pending_confirmation" className="underline font-bold text-amber-900">
+                Review &rarr;
+              </Link>
+            )}
+          </div>
         </div>
 
         {/* Kitchen Throughput */}
@@ -304,14 +342,14 @@ export default function AdminDashboardPage() {
             {pendingPlacedCount + activePreparingCount}
           </div>
           <p className="text-[11px] text-amber-700 font-medium">
-            {pendingPlacedCount} waiting, {activePreparingCount} baking
+            {pendingPlacedCount} queued, {activePreparingCount} baking
           </p>
         </div>
 
         {/* Average Order Value */}
         <div className="bg-white rounded-3xl p-5 border border-border-warm shadow-xs space-y-2">
           <div className="flex items-center justify-between text-muted-gray text-xs font-bold uppercase tracking-wider">
-            <span>Avg Order Value (AOV)</span>
+            <span>Avg Value (AOV)</span>
             <div className="w-8 h-8 rounded-lg bg-purple-50 text-purple-700 flex items-center justify-center">
               <TrendingUp className="w-4 h-4" />
             </div>
@@ -320,7 +358,7 @@ export default function AdminDashboardPage() {
             {formatINR(analytics?.avgOrderValuePaise || 0)}
           </div>
           <p className="text-[11px] text-purple-700 font-medium">
-            Discounts given: {formatINR(analytics?.totalDiscountsPaise || 0)}
+            Discounts: {formatINR(analytics?.totalDiscountsPaise || 0)}
           </p>
         </div>
 

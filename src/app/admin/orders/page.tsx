@@ -213,6 +213,62 @@ export default function AdminOrdersPage() {
     }
   };
 
+  // Staff COD Confirmation Action
+  const handleConfirmCOD = async (orderId: string) => {
+    setActionLoading(true);
+    try {
+      const res = await fetch(`/api/admin/orders/${orderId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'confirm_cod', confirmedBy: 'Staff Operator' }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        fetchOrders();
+        if (selectedOrder?.id === orderId) {
+          setSelectedOrder(data.order);
+        }
+      } else {
+        alert(data.error || 'Failed to confirm COD order.');
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Staff COD Rejection Action
+  const handleRejectCOD = async (orderId: string) => {
+    const reason = prompt(
+      'Reason for rejecting COD order (e.g., Unreachable phone, fake address):',
+      'Customer unreachable via telephone'
+    );
+    if (!reason) return;
+
+    setActionLoading(true);
+    try {
+      const res = await fetch(`/api/admin/orders/${orderId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'reject_cod', reason }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        fetchOrders();
+        if (selectedOrder?.id === orderId) {
+          setSelectedOrder(data.order);
+        }
+      } else {
+        alert(data.error || 'Failed to reject COD order.');
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   // Cancellation action with confirmation
   const handleConfirmCancel = async () => {
     if (!showCancelModal) return;
@@ -425,6 +481,7 @@ export default function AdminOrdersPage() {
               className="w-full text-xs p-2.5 border border-border-warm rounded-xl bg-[#FAF7F0] font-semibold text-charcoal focus:bg-white focus:outline-hidden"
             >
               <option value="all">All Statuses</option>
+              <option value="pending_confirmation">⚠️ Needs Confirmation (COD)</option>
               <option value="placed">New Placed</option>
               <option value="confirmed">Confirmed</option>
               <option value="preparing">In Oven / Preparing</option>
@@ -572,9 +629,34 @@ export default function AdminOrdersPage() {
                       >
                         {ord.status.replace(/_/g, ' ')}
                       </span>
+                      {ord.confirmation_status === 'pending_confirmation' && (
+                        <span className="block mt-1 text-[9px] font-black uppercase text-amber-900 bg-amber-200 border border-amber-400 px-1.5 py-0.5 rounded-full text-center">
+                          Verify COD
+                        </span>
+                      )}
                     </td>
                     <td className="px-5 py-4 text-right" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-1.5">
+                        {ord.confirmation_status === 'pending_confirmation' && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => handleConfirmCOD(ord.id)}
+                              className="px-2 py-1 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-[10px] flex items-center gap-1 shadow-2xs transition"
+                              title="Verify phone & release to kitchen"
+                            >
+                              <Check className="w-3 h-3" /> Confirm
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleRejectCOD(ord.id)}
+                              className="px-2 py-1 rounded-lg bg-red-100 hover:bg-red-200 text-tomato font-bold text-[10px] flex items-center gap-1 transition"
+                              title="Reject fake/unreachable order"
+                            >
+                              <Ban className="w-3 h-3" /> Reject
+                            </button>
+                          </>
+                        )}
                         <button
                           type="button"
                           onClick={() => setSelectedOrder(ord)}
@@ -701,6 +783,49 @@ export default function AdminOrdersPage() {
             {/* Drawer Body */}
             <div className="p-6 space-y-6 flex-1 text-xs">
               
+              {/* Telephone Confirmation Queue Banner for Risky / Large COD Orders */}
+              {selectedOrder.confirmation_status === 'pending_confirmation' && (
+                <div className="p-4 rounded-2xl bg-amber-50 border-2 border-amber-300 space-y-3 shadow-xs">
+                  <div className="flex items-center gap-2 text-amber-900 font-bold">
+                    <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0" />
+                    <span className="text-sm font-black">Requires Staff Telephone Confirmation</span>
+                  </div>
+                  <div className="text-xs text-amber-900 space-y-1">
+                    <p>
+                      <strong>Trigger Reason:</strong> {selectedOrder.confirmation_reason || 'First-time COD customer or order >= ₹1,500.'}
+                    </p>
+                    <p className="text-[11px] text-amber-800">
+                      This order is withheld from the kitchen display until staff verifies phone ownership to prevent fake order wastage.
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2 pt-1">
+                    <a
+                      href={`tel:+91${selectedOrder.customer_phone}`}
+                      className="px-3 py-2 rounded-xl bg-forest text-warm-cream font-bold text-xs inline-flex items-center gap-1.5 shadow-2xs hover:bg-forest/90"
+                    >
+                      <Phone className="w-3.5 h-3.5" /> Call: +91 {selectedOrder.customer_phone}
+                    </a>
+                    <button
+                      type="button"
+                      disabled={actionLoading}
+                      onClick={() => handleConfirmCOD(selectedOrder.id)}
+                      className="px-3.5 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs inline-flex items-center gap-1.5 shadow-2xs cursor-pointer disabled:opacity-50"
+                    >
+                      <Check className="w-3.5 h-3.5" /> Confirm & Send to Kitchen
+                    </button>
+                    <button
+                      type="button"
+                      disabled={actionLoading}
+                      onClick={() => handleRejectCOD(selectedOrder.id)}
+                      className="px-3 py-2 rounded-xl bg-red-100 hover:bg-red-200 text-tomato font-bold text-xs inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                    >
+                      <Ban className="w-3.5 h-3.5" /> Reject Order
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* Status Transition Control Buttons */}
               <div className="p-4 rounded-2xl bg-[#FAF7F0] border border-border-warm space-y-3">
                 <div className="flex items-center justify-between text-xs font-black uppercase tracking-wider text-forest">

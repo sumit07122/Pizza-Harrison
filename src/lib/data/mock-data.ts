@@ -22,6 +22,7 @@ import {
   LoyaltyLedgerEntry,
   DailyChecklistRecord,
   DailyChecklistItem,
+  CustomerAccount,
 } from '../types';
 
 export const INITIAL_BRANCHES: BranchDetails[] = [
@@ -1355,4 +1356,129 @@ export const INITIAL_DAILY_CHECKLISTS: DailyChecklistRecord[] = [
     })),
   },
 ];
+
+// ==========================================
+// REGISTERED CUSTOMER ACCOUNTS (SEED DATA)
+// ==========================================
+
+export const INITIAL_CUSTOMERS: CustomerAccount[] = [
+  {
+    id: 'cust-aman-1',
+    phone: '9897445566',
+    phone_verified: true,
+    full_name: 'Aman Mathur',
+    email: 'aman.mathur@gla.ac.in',
+    email_verified: true,
+    password_hash: 'e1a2f3b4c5d6e7f8:093f41c6d1d4d6e9c9c811462002f06ee5bc674f1b83df6034e3ee41a3106517e4bb0e18146aa33bc6bb8544c77609a633190df5354be4123565f49ae374b5b8',
+    saved_addresses: [
+      {
+        id: 'addr-1',
+        label: 'Hostel',
+        address_line: 'Boys Hostel 3, Room 214, GLA Campus, Mathura',
+        landmark: 'Near Football Ground',
+        is_default: true,
+      },
+      {
+        id: 'addr-2',
+        label: 'Home',
+        address_line: 'Plot 14, Sector B, Krishna Nagar',
+        landmark: 'Behind Radhika Sweet Mart',
+        is_default: false,
+      },
+    ],
+    favorites: ['prod-1', 'prod-3'],
+    created_at: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+    updated_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 'cust-priyanshu-2',
+    phone: '9876543210',
+    phone_verified: true,
+    full_name: 'Priyanshu Bansal',
+    email: 'priyanshu.bansal@gmail.com',
+    email_verified: true,
+    password_hash: 'e1a2f3b4c5d6e7f8:093f41c6d1d4d6e9c9c811462002f06ee5bc674f1b83df6034e3ee41a3106517e4bb0e18146aa33bc6bb8544c77609a633190df5354be4123565f49ae374b5b8',
+    saved_addresses: [
+      {
+        id: 'addr-3',
+        label: 'Home',
+        address_line: 'Flat 402, Shri Radha Florence, NH-19 Highway, Mathura',
+        landmark: 'Opposite Sanskriti University',
+        is_default: true,
+      },
+    ],
+    favorites: ['prod-1', 'prod-18'],
+    created_at: new Date(Date.now() - 45 * 24 * 60 * 60 * 1000).toISOString(),
+    updated_at: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 'cust-sneha-3',
+    phone: '9812345678',
+    phone_verified: true,
+    full_name: 'Sneha Sharma',
+    email: 'sneha.sharma@gmail.com',
+    email_verified: true,
+    password_hash: 'e1a2f3b4c5d6e7f8:093f41c6d1d4d6e9c9c811462002f06ee5bc674f1b83df6034e3ee41a3106517e4bb0e18146aa33bc6bb8544c77609a633190df5354be4123565f49ae374b5b8',
+    saved_addresses: [
+      {
+        id: 'addr-4',
+        label: 'Home',
+        address_line: 'House 52, Pali Khera Road, Near Krishna Public School',
+        landmark: 'Opposite Krishna Public School',
+        is_default: true,
+      },
+    ],
+    favorites: ['prod-2', 'prod-15'],
+    created_at: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
+    updated_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 'cust-rbac-4',
+    phone: '9897999888',
+    phone_verified: true,
+    full_name: 'RBAC Test Customer',
+    email: 'rbac.test@pizzaharrison.com',
+    email_verified: true,
+    password_hash: 'e1a2f3b4c5d6e7f8:093f41c6d1d4d6e9c9c811462002f06ee5bc674f1b83df6034e3ee41a3106517e4bb0e18146aa33bc6bb8544c77609a633190df5354be4123565f49ae374b5b8',
+    saved_addresses: [
+      {
+        id: 'addr-5',
+        label: 'Home',
+        address_line: 'Sonkh Road Test House, Mathura',
+        landmark: 'Near Indian Oil Petrol Pump',
+        is_default: true,
+      },
+    ],
+    favorites: ['prod-1'],
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: 'cust-cancel-5',
+    phone: '9897111222',
+    phone_verified: true,
+    full_name: 'Cancellation Test Customer',
+    email: 'cancel.test@pizzaharrison.com',
+    email_verified: true,
+    password_hash: 'e1a2f3b4c5d6e7f8:093f41c6d1d4d6e9c9c811462002f06ee5bc674f1b83df6034e3ee41a3106517e4bb0e18146aa33bc6bb8544c77609a633190df5354be4123565f49ae374b5b8',
+    saved_addresses: [],
+    favorites: ['prod-1'],
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: 'cust-quickcancel-6',
+    phone: '9897554433',
+    phone_verified: true,
+    full_name: 'Quick Cancel User',
+    email: 'quick.cancel@pizzaharrison.com',
+    email_verified: true,
+    password_hash: 'e1a2f3b4c5d6e7f8:093f41c6d1d4d6e9c9c811462002f06ee5bc674f1b83df6034e3ee41a3106517e4bb0e18146aa33bc6bb8544c77609a633190df5354be4123565f49ae374b5b8',
+    saved_addresses: [],
+    favorites: ['prod-1'],
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+];
+
 

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { CartProvider } from '@/lib/store/cart-context';
+import { CustomerAuthProvider } from '@/lib/store/customer-auth-context';
 import { CartDrawer } from '@/components/storefront/CartDrawer';
 
 export const metadata: Metadata = {
@@ -33,10 +34,12 @@ export default function RootLayout({
   return (
     <html lang="en" className="h-full antialiased scroll-smooth">
       <body className="min-h-full flex flex-col bg-warm-cream text-charcoal">
-        <CartProvider>
-          {children}
-          <CartDrawer />
-        </CartProvider>
+        <CustomerAuthProvider>
+          <CartProvider>
+            {children}
+            <CartDrawer />
+          </CartProvider>
+        </CustomerAuthProvider>
       </body>
     </html>
   );
