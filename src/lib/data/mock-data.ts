@@ -20,6 +20,8 @@ import {
   LoyaltyProgramConfig,
   LoyaltyAccount,
   LoyaltyLedgerEntry,
+  DailyChecklistRecord,
+  DailyChecklistItem,
 } from '../types';
 
 export const INITIAL_BRANCHES: BranchDetails[] = [
@@ -323,12 +325,76 @@ export const INITIAL_PRODUCTS: Product[] = [
     image_url: 'https://images.unsplash.com/photo-1534308983496-4fabb1a015ee?auto=format&fit=crop&w=700&q=80',
     is_veg: true,
     is_spicy: false,
+    spice_level: 'mild',
+    combo_items: ['1x Regular Paneer Makhani Pizza', '1x Regular Margherita Pizza', '1x Stuffed Garlic Bread', '1x Cheesy Jalapeno Dip'],
+    original_price_paise: 69900,
+    combo_savings_paise: 15000,
     is_bestseller: true,
     is_featured: true,
     is_available: true,
     is_price_verified: true,
     base_price_paise: 54900, // ₹549 combo
     sort_order: 8,
+  },
+  {
+    id: 'prod-combo-1',
+    category_id: 'cat-3',
+    name: 'Mathura Duo Value Combo',
+    slug: 'mathura-duo-value-combo',
+    description: '2 Regular 7" Hand-Tossed Pizzas (Margherita & Farmhouse Deluxe) + 1 Stuffed Garlic Bread + 2 Cold Drinks.',
+    image_url: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=700&q=80',
+    is_veg: true,
+    is_spicy: false,
+    spice_level: 'mild',
+    combo_items: ['1x Regular Margherita Pizza', '1x Regular Farmhouse Pizza', '1x Stuffed Garlic Bread', '2x Chilled Cold Drinks'],
+    original_price_paise: 62900,
+    combo_savings_paise: 13000,
+    is_bestseller: true,
+    is_featured: true,
+    is_available: true,
+    is_price_verified: true,
+    base_price_paise: 49900, // ₹499
+    sort_order: 9,
+  },
+  {
+    id: 'prod-combo-2',
+    category_id: 'cat-3',
+    name: 'Harrison Grand Family Feast',
+    slug: 'harrison-grand-family-feast',
+    description: '2 Medium 9" Artisan Pizzas (Farmhouse & Peppy Paneer) + 1 Peri-Peri Crinkle Fries + 1 Stuffed Garlic Bread + 4 Cold Drinks.',
+    image_url: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?auto=format&fit=crop&w=700&q=80',
+    is_veg: true,
+    is_spicy: false,
+    spice_level: 'medium',
+    combo_items: ['2x Medium 9" Gourmet Pizzas', '1x Peri-Peri Crinkle Fries', '1x Cheesy Stuffed Garlic Bread', '4x Cold Drinks'],
+    original_price_paise: 114600,
+    combo_savings_paise: 24700,
+    is_bestseller: true,
+    is_featured: true,
+    is_available: true,
+    is_price_verified: true,
+    base_price_paise: 89900, // ₹899
+    sort_order: 10,
+  },
+  {
+    id: 'prod-combo-3',
+    category_id: 'cat-3',
+    name: 'Solo Pizza & Fries Snacker',
+    slug: 'solo-pizza-fries-snacker',
+    description: '1 Regular 7" Personal Pan Pizza (Sweet Corn & Onion) + 1 Classic Crinkle Fries + 1 Chilled Cold Drink.',
+    image_url: 'https://images.unsplash.com/photo-1544982503-9f984c14501a?auto=format&fit=crop&w=700&q=80',
+    is_veg: true,
+    is_spicy: false,
+    spice_level: 'mild',
+    combo_items: ['1x Regular Sweet Corn Pizza', '1x Classic Crinkle Fries', '1x Chilled Cold Drink'],
+    original_price_paise: 27900,
+    combo_savings_paise: 6000,
+    is_bestseller: false,
+    is_featured: false,
+    is_available: true,
+    is_price_verified: true,
+    base_price_paise: 21900, // ₹219
+    sort_order: 11,
   },
   {
     id: 'prod-9',
@@ -344,7 +410,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     is_available: true,
     is_price_verified: true,
     base_price_paise: 11900, // ₹119
-    sort_order: 9,
+    sort_order: 12,
   },
   {
     id: 'prod-10',
@@ -360,7 +426,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     is_available: true,
     is_price_verified: true,
     base_price_paise: 12900, // ₹129
-    sort_order: 10,
+    sort_order: 13,
   },
 
   // 4. Stuffed Garlic Breads & Sides
@@ -1236,6 +1302,57 @@ export const INITIAL_LOYALTY_LEDGER: LoyaltyLedgerEntry[] = [
     reason: 'Qualifying order completed (Subtotal ₹349 >= ₹299 threshold)',
     recorded_by: 'System',
     created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+  },
+];
+
+// ==========================================
+// DAILY OPENING & CLOSING STORE CHECKLISTS
+// ==========================================
+
+export const DEFAULT_OPENING_TASKS: Array<{ id: string; task: string; category: DailyChecklistItem['category'] }> = [
+  { id: 'op-1', task: 'Verify online ordering toggle is enabled & hours active', category: 'operations' },
+  { id: 'op-2', task: 'Inspect dough fermentation trays (24-hr proofing check)', category: 'kitchen' },
+  { id: 'op-3', task: 'Calibrate stone pizza deck oven to 320°C–350°C', category: 'kitchen' },
+  { id: 'op-4', task: 'Check low-stock alert warnings & confirm ingredient availability', category: 'inventory' },
+  { id: 'op-5', task: 'Sanitize vegetable cutting boards, knives & topping station chillers', category: 'safety' },
+  { id: 'op-6', task: 'Verify counter cash float & UPI merchant QR standees', category: 'financial' },
+];
+
+export const DEFAULT_CLOSING_TASKS: Array<{ id: string; task: string; category: DailyChecklistItem['category'] }> = [
+  { id: 'cl-1', task: 'Ensure all in-flight orders are delivered & marked completed', category: 'operations' },
+  { id: 'cl-2', task: 'Reconcile daily cash counter, UPI scan slips & card settlements', category: 'financial' },
+  { id: 'cl-3', task: 'Record stock purchases, supplier deliveries & wastage movements', category: 'inventory' },
+  { id: 'cl-4', task: 'Power down pizza deck ovens safely & clean crumb trays', category: 'safety' },
+  { id: 'cl-5', task: 'Store remaining dough & prepped cheese in sealed walk-in chillers', category: 'kitchen' },
+  { id: 'cl-6', task: 'Confirm overnight online ordering status toggle & secure premises', category: 'operations' },
+];
+
+export const INITIAL_DAILY_CHECKLISTS: DailyChecklistRecord[] = [
+  {
+    id: 'chk-today-opening',
+    date: new Date().toISOString().slice(0, 10),
+    type: 'opening',
+    status: 'completed',
+    submitted_by: 'Rohan Verma (Manager)',
+    submitted_at: new Date(Date.now() - 10 * 60 * 60 * 1000).toISOString(),
+    items: DEFAULT_OPENING_TASKS.map((t) => ({
+      ...t,
+      completed: true,
+      completed_by: 'Rohan Verma (Manager)',
+      completed_at: new Date(Date.now() - 10 * 60 * 60 * 1000).toISOString(),
+    })),
+  },
+  {
+    id: 'chk-today-closing',
+    date: new Date().toISOString().slice(0, 10),
+    type: 'closing',
+    status: 'in_progress',
+    items: DEFAULT_CLOSING_TASKS.map((t, idx) => ({
+      ...t,
+      completed: idx < 2,
+      completed_by: idx < 2 ? 'Vikram Staff' : undefined,
+      completed_at: idx < 2 ? new Date(Date.now() - 30 * 60 * 1000).toISOString() : undefined,
+    })),
   },
 ];
 

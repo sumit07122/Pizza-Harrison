@@ -65,8 +65,9 @@ export async function GET(req: NextRequest) {
       },
     });
   } catch (err: any) {
+    console.error('Error in api/loyalty/check:', err);
     return NextResponse.json(
-      { error: 'Failed to retrieve loyalty progress.' },
+      { error: 'Failed to retrieve loyalty progress.', details: err?.message, stack: err?.stack },
       { status: 500 }
     );
   }

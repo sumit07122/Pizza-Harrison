@@ -17,12 +17,15 @@ import {
   Phone,
   Mail,
   RefreshCw,
+  ClipboardCheck,
 } from 'lucide-react';
 import { RestaurantSettings, HolidayClosure } from '@/lib/types';
 import { formatINR } from '@/lib/pricing';
+import { DailyChecklistTab } from '@/components/admin/DailyChecklistTab';
 import Link from 'next/link';
 
 export default function AdminSettingsPage() {
+  const [activeTab, setActiveTab] = useState<'settings' | 'checklists'>('settings');
   const [settings, setSettings] = useState<RestaurantSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -159,13 +162,31 @@ export default function AdminSettingsPage() {
     <div className="space-y-6 max-w-4xl">
       {/* Sub-Navigation Tabs */}
       <div className="flex items-center gap-2 border-b border-border-warm pb-3 overflow-x-auto text-xs font-bold">
-        <Link
-          href="/admin/settings"
-          className="px-4 py-2 rounded-xl bg-forest text-white shadow-xs transition flex items-center gap-1.5"
+        <button
+          type="button"
+          onClick={() => setActiveTab('settings')}
+          className={`px-4 py-2 rounded-xl transition flex items-center gap-1.5 cursor-pointer ${
+            activeTab === 'settings'
+              ? 'bg-forest text-white shadow-xs'
+              : 'bg-white text-charcoal border border-border-warm hover:bg-neutral-50'
+          }`}
         >
           <Settings className="w-3.5 h-3.5" />
           <span>Store Settings & Hours</span>
-        </Link>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('checklists')}
+          className={`px-4 py-2 rounded-xl transition flex items-center gap-1.5 cursor-pointer ${
+            activeTab === 'checklists'
+              ? 'bg-primary-green text-white shadow-xs'
+              : 'bg-white text-charcoal border border-border-warm hover:bg-neutral-50'
+          }`}
+        >
+          <ClipboardCheck className="w-3.5 h-3.5" />
+          <span>Daily Checklists (SOP)</span>
+        </button>
 
         <Link
           href="/admin/staff"
@@ -195,6 +216,11 @@ export default function AdminSettingsPage() {
           <span>Customer Reviews</span>
         </Link>
       </div>
+
+      {activeTab === 'checklists' ? (
+        <DailyChecklistTab />
+      ) : (
+        <>
 
       {/* Top Banner */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-3xl border border-border-warm shadow-xs">
@@ -496,6 +522,8 @@ export default function AdminSettingsPage() {
         </div>
 
       </form>
+        </>
+      )}
 
     </div>
   );

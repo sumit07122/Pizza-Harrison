@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import {
   UtensilsCrossed,
@@ -25,6 +25,9 @@ import {
   Send,
   Ban,
   Check,
+  Volume2,
+  VolumeX,
+  BellRing,
 } from 'lucide-react';
 import { Order, OrderStatus } from '@/lib/types';
 import { formatINR } from '@/lib/pricing';
@@ -41,6 +44,71 @@ export default function AdminOrdersPage() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
+
+  // New-order notification & sound state (Improvement #8)
+  const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
+  const [newOrderAlert, setNewOrderAlert] = useState<{
+    count: number;
+    latestOrderNumber: string;
+    itemsCount: number;
+    totalPaise: number;
+  } | null>(null);
+  const knownOrderIdsRef = useRef<Set<string> | null>(null);
+
+  // Synthesize clean audio bell chime without external audio file dependencies
+  const playOrderChime = () => {
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const now = ctx.currentTime;
+
+      // Primary chime note (E5 ~ 659.25Hz)
+      const osc1 = ctx.createOscillator();
+      const gain1 = ctx.createGain();
+      osc1.type = 'sine';
+      osc1.frequency.setValueAtTime(659.25, now);
+      gain1.gain.setValueAtTime(0.28, now);
+      gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+      osc1.connect(gain1);
+      gain1.connect(ctx.destination);
+      osc1.start(now);
+      osc1.stop(now + 0.45);
+
+      // Higher harmonic note (A5 ~ 880Hz)
+      const osc2 = ctx.createOscillator();
+      const gain2 = ctx.createGain();
+      osc2.type = 'sine';
+      osc2.frequency.setValueAtTime(880, now + 0.16);
+      gain2.gain.setValueAtTime(0.32, now + 0.16);
+      gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.65);
+      osc2.connect(gain2);
+      gain2.connect(ctx.destination);
+      osc2.start(now + 0.16);
+      osc2.stop(now + 0.65);
+    } catch (err) {
+      console.warn('Audio chime blocked or unsupported in this browser environment', err);
+    }
+  };
+
+  // Toggle sound and play a friendly confirmation test tone
+  const toggleSound = () => {
+    const nextState = !soundEnabled;
+    setSoundEnabled(nextState);
+    try {
+      localStorage.setItem('ph_kitchen_sound_active', nextState ? 'true' : 'false');
+    } catch (_) {}
+    if (nextState) {
+      playOrderChime();
+    }
+  };
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('ph_kitchen_sound_active');
+      if (stored !== null) setSoundEnabled(stored === 'true');
+    } catch (_) {}
+  }, []);
 
   // Selected Order for Drawer
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
@@ -71,6 +139,32 @@ export default function AdminOrdersPage() {
       const res = await fetch(`/api/admin/orders?${params.toString()}`);
       const data = await res.json();
       if (data.success) {
+        // Detect genuinely new orders (Improvement #8 deduplication)
+        if (knownOrderIdsRef.current === null) {
+          // Initial load: populate known IDs without ringing sound
+          knownOrderIdsRef.current = new Set(data.orders.map((o: Order) => o.id));
+        } else {
+          // Subsequent polling passes
+          const newPlacedOrders = data.orders.filter(
+            (o: Order) => !knownOrderIdsRef.current!.has(o.id) && o.status === 'placed'
+          );
+
+          // Update known set
+          data.orders.forEach((o: Order) => knownOrderIdsRef.current!.add(o.id));
+
+          if (newPlacedOrders.length > 0) {
+            setNewOrderAlert({
+              count: newPlacedOrders.length,
+              latestOrderNumber: newPlacedOrders[0].order_number,
+              itemsCount: newPlacedOrders[0].items.length,
+              totalPaise: newPlacedOrders[0].total_price_paise,
+            });
+            if (soundEnabled) {
+              playOrderChime();
+            }
+          }
+        }
+
         setOrders(data.orders);
         setTotalPages(data.totalPages || 1);
         setTotalCount(data.totalCount || 0);
@@ -92,7 +186,7 @@ export default function AdminOrdersPage() {
     fetchOrders();
     const interval = setInterval(fetchOrders, 12000);
     return () => clearInterval(interval);
-  }, [search, statusFilter, branchFilter, typeFilter, dateFilter, page]);
+  }, [search, statusFilter, branchFilter, typeFilter, dateFilter, page, soundEnabled]);
 
   // Status progression action
   const handleStatusChange = async (orderId: string, newStatus: OrderStatus) => {
@@ -210,7 +304,31 @@ export default function AdminOrdersPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Sound Controls (Improvement #8) */}
+          <button
+            type="button"
+            onClick={toggleSound}
+            className={`text-xs font-bold px-3.5 py-2.5 rounded-xl flex items-center gap-1.5 transition cursor-pointer border ${
+              soundEnabled
+                ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100'
+                : 'bg-neutral-100 text-neutral-500 border-neutral-200 hover:bg-neutral-200'
+            }`}
+            title={soundEnabled ? 'Kitchen order audio alert is ON (click to mute)' : 'Kitchen order audio alert is MUTED (click to enable)'}
+          >
+            {soundEnabled ? (
+              <>
+                <Volume2 className="w-4 h-4 text-emerald-700 animate-pulse" />
+                <span>Audio Alert: ON</span>
+              </>
+            ) : (
+              <>
+                <VolumeX className="w-4 h-4 text-neutral-400" />
+                <span>Audio Alert: MUTED</span>
+              </>
+            )}
+          </button>
+
           <Link
             href="/admin/kitchen"
             className="bg-primary-green hover:bg-forest text-white text-xs font-bold px-4 py-2.5 rounded-xl flex items-center gap-1.5 shadow-sm transition"
@@ -230,6 +348,52 @@ export default function AdminOrdersPage() {
           </button>
         </div>
       </div>
+
+      {/* New Order Realtime Notification Banner (Improvement #8) */}
+      {newOrderAlert && (
+        <div className="bg-emerald-950 text-white p-4 sm:p-5 rounded-3xl border border-emerald-700 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-in slide-in-from-top-3 duration-300">
+          <div className="flex items-center gap-3.5">
+            <div className="w-12 h-12 rounded-2xl bg-emerald-800 flex items-center justify-center shrink-0 shadow-inner">
+              <BellRing className="w-6 h-6 text-amber-300 animate-bounce" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-black text-sm sm:text-base text-white font-serif">
+                  NEW ORDER RECEIVED: #{newOrderAlert.latestOrderNumber}
+                </span>
+                <span className="bg-emerald-800 text-emerald-200 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                  {formatINR(newOrderAlert.totalPaise)}
+                </span>
+              </div>
+              <p className="text-xs text-emerald-200/90 mt-0.5">
+                {newOrderAlert.count > 1 ? `${newOrderAlert.count} new incoming orders` : `${newOrderAlert.itemsCount} item(s)`} awaiting kitchen confirmation & KOT printing.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+            <button
+              type="button"
+              onClick={() => {
+                setSearch(newOrderAlert.latestOrderNumber);
+                setNewOrderAlert(null);
+                setPage(1);
+              }}
+              className="bg-white hover:bg-warm-cream text-forest font-black text-xs px-4 py-2 rounded-xl shadow-xs transition cursor-pointer"
+            >
+              Inspect Order &rarr;
+            </button>
+            <button
+              type="button"
+              onClick={() => setNewOrderAlert(null)}
+              className="p-2 text-emerald-300 hover:text-white rounded-xl hover:bg-emerald-800/60 transition cursor-pointer"
+              title="Dismiss alert"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Search & Filter Toolbar */}
       <div className="bg-white p-4 rounded-3xl border border-border-warm shadow-xs space-y-3">

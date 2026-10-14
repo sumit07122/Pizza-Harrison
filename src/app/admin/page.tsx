@@ -19,6 +19,7 @@ import {
   ShoppingBag,
   Sparkles,
   RotateCcw,
+  ClipboardCheck,
 } from 'lucide-react';
 import { Order } from '@/lib/types';
 import { formatINR } from '@/lib/pricing';
@@ -30,6 +31,12 @@ export default function AdminDashboardPage() {
   const [analytics, setAnalytics] = useState<any>(null);
   const [recentOrders, setRecentOrders] = useState<Order[]>([]);
   const [lowStockCount, setLowStockCount] = useState<number>(0);
+  const [checklistStats, setChecklistStats] = useState<{
+    openingDone: number;
+    openingTotal: number;
+    closingDone: number;
+    closingTotal: number;
+  }>({ openingDone: 0, openingTotal: 6, closingDone: 0, closingTotal: 6 });
   const [loading, setLoading] = useState(true);
 
   const fetchOverview = async () => {
@@ -39,9 +46,10 @@ export default function AdminDashboardPage() {
       if (dateRange === 'custom' && startDate && endDate) {
         url += `&startDate=${startDate}&endDate=${endDate}`;
       }
-      const [ovRes, invRes] = await Promise.all([
+      const [ovRes, invRes, chkRes] = await Promise.all([
         fetch(url),
         fetch('/api/admin/inventory').catch(() => null),
+        fetch('/api/admin/checklists').catch(() => null),
       ]);
       const data = await ovRes.json();
       if (data.success) {
@@ -53,6 +61,19 @@ export default function AdminDashboardPage() {
         if (invData.success && invData.items) {
           const low = invData.items.filter((it: any) => it.current_stock <= it.min_threshold);
           setLowStockCount(low.length);
+        }
+      }
+      if (chkRes) {
+        const chkData = await chkRes.json();
+        if (chkData.success && chkData.checklists) {
+          const opening = chkData.checklists.find((c: any) => c.checklist_type === 'opening');
+          const closing = chkData.checklists.find((c: any) => c.checklist_type === 'closing');
+          setChecklistStats({
+            openingDone: opening ? opening.items.filter((i: any) => i.is_completed).length : 0,
+            openingTotal: opening?.items?.length || 6,
+            closingDone: closing ? closing.items.filter((i: any) => i.is_completed).length : 0,
+            closingTotal: closing?.items?.length || 6,
+          });
         }
       }
     } catch (e) {
@@ -188,6 +209,52 @@ export default function AdminDashboardPage() {
           </Link>
         </div>
       )}
+
+      {/* Daily SOP Checklist Status (Improvement #11) */}
+      <div className="bg-white rounded-3xl p-5 border border-border-warm shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex items-center gap-3.5">
+          <div className="w-11 h-11 rounded-2xl bg-emerald-50 text-primary-green flex items-center justify-center shrink-0">
+            <ClipboardCheck className="w-6 h-6" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h3 className="text-sm font-black text-forest font-serif">Today's Daily SOP Checklists</h3>
+              <span className="text-[10px] bg-[#FAF7F0] border border-border-warm text-charcoal px-2.5 py-0.5 rounded-full font-bold">
+                Operational Routine
+              </span>
+            </div>
+            <p className="text-xs text-muted-gray mt-0.5">
+              Opening checklist: <strong className="text-charcoal">{checklistStats.openingDone}/{checklistStats.openingTotal}</strong> completed &bull; Closing handover: <strong className="text-charcoal">{checklistStats.closingDone}/{checklistStats.closingTotal}</strong> completed
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 self-end md:self-auto">
+          <div className="flex items-center gap-2 text-xs">
+            <span className={`px-2.5 py-1 rounded-lg font-bold ${
+              checklistStats.openingDone === checklistStats.openingTotal
+                ? 'bg-emerald-100 text-emerald-800'
+                : 'bg-amber-100 text-amber-900'
+            }`}>
+              Opening: {checklistStats.openingDone}/{checklistStats.openingTotal}
+            </span>
+            <span className={`px-2.5 py-1 rounded-lg font-bold ${
+              checklistStats.closingDone === checklistStats.closingTotal
+                ? 'bg-emerald-100 text-emerald-800'
+                : 'bg-neutral-100 text-neutral-600'
+            }`}>
+              Closing: {checklistStats.closingDone}/{checklistStats.closingTotal}
+            </span>
+          </div>
+
+          <Link
+            href="/admin/settings?tab=checklists"
+            className="px-3.5 py-2 rounded-xl bg-forest hover:bg-primary-green text-white font-bold text-xs shadow-xs transition"
+          >
+            Open Checklists &rarr;
+          </Link>
+        </div>
+      </div>
 
       {/* KPI Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">

@@ -25,6 +25,8 @@ import {
   LoyaltyProgramConfig,
   LoyaltyAccount,
   LoyaltyLedgerEntry,
+  DailyChecklistRecord,
+  DailyChecklistItem,
 } from '../types';
 import {
   INITIAL_CATEGORIES,
@@ -45,6 +47,9 @@ import {
   INITIAL_LOYALTY_CONFIG,
   INITIAL_LOYALTY_ACCOUNTS,
   INITIAL_LOYALTY_LEDGER,
+  INITIAL_DAILY_CHECKLISTS,
+  DEFAULT_OPENING_TASKS,
+  DEFAULT_CLOSING_TASKS,
 } from './mock-data';
 import { getSupabaseServerClient } from '../supabase/server';
 import { calculateFullPricing } from '../pricing';
@@ -69,6 +74,7 @@ class MemoryDataStore {
   loyaltyConfig: LoyaltyProgramConfig = JSON.parse(JSON.stringify(INITIAL_LOYALTY_CONFIG));
   loyaltyAccounts: LoyaltyAccount[] = JSON.parse(JSON.stringify(INITIAL_LOYALTY_ACCOUNTS));
   loyaltyLedger: LoyaltyLedgerEntry[] = JSON.parse(JSON.stringify(INITIAL_LOYALTY_LEDGER));
+  dailyChecklists: DailyChecklistRecord[] = JSON.parse(JSON.stringify(INITIAL_DAILY_CHECKLISTS));
 }
 
 const globalForStore = globalThis as unknown as { pizzaStore: MemoryDataStore };
@@ -2005,5 +2011,99 @@ export async function fetchLoyaltyLedger(phone?: string): Promise<LoyaltyLedgerE
     return memoryStore.loyaltyLedger.filter((l) => l.customer_phone === cleanPhone);
   }
   return [...memoryStore.loyaltyLedger];
+}
+
+// ==========================================
+// DAILY OPENING & CLOSING CHECKLISTS API
+// ==========================================
+
+export async function fetchDailyChecklists(dateStr?: string): Promise<DailyChecklistRecord[]> {
+  const targetDate = dateStr || new Date().toISOString().slice(0, 10);
+
+  // Ensure an opening & closing instance exist for targetDate
+  let opening = memoryStore.dailyChecklists.find(
+    (c) => c.date === targetDate && c.type === 'opening'
+  );
+  if (!opening) {
+    opening = {
+      id: `chk-${targetDate}-opening`,
+      date: targetDate,
+      type: 'opening',
+      status: 'pending',
+      items: DEFAULT_OPENING_TASKS.map((t) => ({ ...t, completed: false })),
+    };
+    memoryStore.dailyChecklists.unshift(opening);
+  }
+
+  let closing = memoryStore.dailyChecklists.find(
+    (c) => c.date === targetDate && c.type === 'closing'
+  );
+  if (!closing) {
+    closing = {
+      id: `chk-${targetDate}-closing`,
+      date: targetDate,
+      type: 'closing',
+      status: 'pending',
+      items: DEFAULT_CLOSING_TASKS.map((t) => ({ ...t, completed: false })),
+    };
+    memoryStore.dailyChecklists.unshift(closing);
+  }
+
+  return memoryStore.dailyChecklists.filter((c) => c.date === targetDate);
+}
+
+export async function toggleDailyChecklistItem(
+  checklistId: string,
+  itemId: string,
+  staffName: string = 'Staff'
+): Promise<{ success: boolean; record?: DailyChecklistRecord; error?: string }> {
+  const record = memoryStore.dailyChecklists.find((c) => c.id === checklistId);
+  if (!record) {
+    return { success: false, error: 'Checklist record not found.' };
+  }
+
+  const item = record.items.find((i: DailyChecklistItem) => i.id === itemId);
+  if (!item) {
+    return { success: false, error: 'Checklist task item not found.' };
+  }
+
+  item.completed = !item.completed;
+  if (item.completed) {
+    item.completed_by = staffName;
+    item.completed_at = new Date().toISOString();
+  } else {
+    item.completed_by = undefined;
+    item.completed_at = undefined;
+  }
+
+  const allCompleted = record.items.every((i: DailyChecklistItem) => i.completed);
+  const anyCompleted = record.items.some((i: DailyChecklistItem) => i.completed);
+  record.status = allCompleted ? 'completed' : anyCompleted ? 'in_progress' : 'pending';
+
+  return { success: true, record };
+}
+
+export async function submitDailyChecklist(
+  checklistId: string,
+  staffName: string = 'Staff'
+): Promise<{ success: boolean; record?: DailyChecklistRecord; error?: string }> {
+  const record = memoryStore.dailyChecklists.find((c) => c.id === checklistId);
+  if (!record) {
+    return { success: false, error: 'Checklist record not found.' };
+  }
+
+  const incompleteCount = record.items.filter((i: DailyChecklistItem) => !i.completed).length;
+  record.status = 'completed';
+  record.submitted_by = staffName;
+  record.submitted_at = new Date().toISOString();
+
+  addAuditLogEntry({
+    user_name: staffName,
+    action: `CHECKLIST_${record.type.toUpperCase()}_SUBMITTED`,
+    entity_type: 'operations',
+    details: `Staff submitted daily ${record.type} checklist for ${record.date} (${record.items.length - incompleteCount}/${record.items.length} tasks completed).`,
+  });
+
+  return { success: true, record };
 }
 

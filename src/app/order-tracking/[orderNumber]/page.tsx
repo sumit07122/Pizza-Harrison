@@ -15,12 +15,14 @@ import {
   MapPin,
   ArrowRight,
   ShieldCheck,
+  RotateCcw,
 } from 'lucide-react';
 import { Navbar } from '@/components/storefront/Navbar';
 import { Footer } from '@/components/storefront/Footer';
-import { Order, OrderStatus } from '@/lib/types';
+import { Order, OrderStatus, Product } from '@/lib/types';
 import { formatINR } from '@/lib/pricing';
 import { generateWhatsAppOrderUrl, getClickToCallUrl, RESTAURANT_PHONE } from '@/lib/whatsapp';
+import { useCart } from '@/lib/store/cart-context';
 
 interface PageProps {
   params: Promise<{ orderNumber: string }>;
@@ -29,12 +31,67 @@ interface PageProps {
 export default function OrderTrackingPage({ params }: PageProps) {
   const resolvedParams = use(params);
   const orderNumber = resolvedParams.orderNumber;
+  const { addItem, openCartDrawer } = useCart();
 
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [reorderLoading, setReorderLoading] = useState(false);
+  const [reorderNotice, setReorderNotice] = useState<string | null>(null);
+
+  const handleReorder = async () => {
+    if (!order || !order.items || order.items.length === 0) return;
+    setReorderLoading(true);
+    setReorderNotice(null);
+
+    try {
+      const res = await fetch('/api/admin/menu');
+      const data = await res.json();
+      const currentProducts: Product[] = data.products || [];
+
+      let addedCount = 0;
+      const skippedNames: string[] = [];
+
+      for (const item of order.items) {
+        const prod = currentProducts.find(
+          (p) => p.name.toLowerCase() === item.product_name.toLowerCase() || p.id === item.product_id
+        );
+
+        if (!prod || !prod.is_available) {
+          skippedNames.push(item.product_name);
+          continue;
+        }
+
+        const variant = prod.variants?.find((v) => v.size_name === item.variant_name) || prod.variants?.[0];
+        const unitPrice = variant ? variant.price_paise : prod.base_price_paise;
+
+        addItem({
+          product: prod,
+          selectedVariant: variant,
+          selectedAddons: [],
+          quantity: item.quantity,
+          unitPricePaise: unitPrice,
+        });
+        addedCount++;
+      }
+
+      if (skippedNames.length > 0) {
+        setReorderNotice(
+          `Added ${addedCount} available item(s) to your cart. Note: ${skippedNames.join(', ')} is currently out of stock and was excluded.`
+        );
+      } else {
+        setReorderNotice(`Added all ${addedCount} item(s) to your cart with current menu prices!`);
+      }
+
+      openCartDrawer();
+    } catch (e) {
+      setReorderNotice('Could not reorder items. Please browse our menu directly.');
+    } finally {
+      setReorderLoading(false);
+    }
+  };
 
   const fetchOrder = async (isManual = false) => {
     if (isManual) setIsRefreshing(true);
@@ -275,9 +332,27 @@ export default function OrderTrackingPage({ params }: PageProps) {
 
               {/* Order Invoice & Item Details */}
               <div className="bg-white rounded-3xl p-6 sm:p-8 border border-border-warm shadow-xs space-y-4">
-                <h3 className="text-base font-black text-forest font-serif">
-                  Order Invoice Snapshot
-                </h3>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-border-warm">
+                  <h3 className="text-base font-black text-forest font-serif">
+                    Order Invoice Snapshot
+                  </h3>
+
+                  <button
+                    type="button"
+                    disabled={reorderLoading}
+                    onClick={handleReorder}
+                    className="px-4 py-2 bg-primary-green hover:bg-forest text-white text-xs font-black uppercase tracking-wider rounded-xl shadow-xs transition transform active:scale-95 disabled:opacity-50 cursor-pointer flex items-center justify-center gap-1.5 self-start sm:self-auto"
+                  >
+                    <RotateCcw className={`w-3.5 h-3.5 ${reorderLoading ? 'animate-spin' : ''}`} />
+                    <span>{reorderLoading ? 'Revalidating Items...' : 'One-Tap Reorder'}</span>
+                  </button>
+                </div>
+
+                {reorderNotice && (
+                  <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 text-xs font-medium">
+                    {reorderNotice}
+                  </div>
+                )}
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs pb-4 border-b border-border-warm">
                   <div>

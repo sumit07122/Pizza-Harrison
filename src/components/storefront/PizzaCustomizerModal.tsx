@@ -141,6 +141,67 @@ export function PizzaCustomizerModal({ product, onClose }: PizzaCustomizerModalP
             {product.description}
           </p>
 
+          {/* Sold out alert */}
+          {product.is_available === false && (
+            <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700 font-bold flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-red-600 animate-ping" />
+              <span>This item is temporarily sold out and cannot be ordered at this time.</span>
+            </div>
+          )}
+
+          {/* Combo Deal Details */}
+          {product.combo_items && product.combo_items.length > 0 && (
+            <div className="p-3.5 rounded-2xl bg-[#F7F4ED] border border-border-warm space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black uppercase tracking-wider text-forest">
+                  Included in This Combo Deal
+                </span>
+                {product.combo_savings_paise && (
+                  <span className="bg-tomato text-white text-[10px] font-black px-2 py-0.5 rounded-full">
+                    Save {formatINR(product.combo_savings_paise)}
+                  </span>
+                )}
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pt-1">
+                {product.combo_items.map((item, idx) => (
+                  <div
+                    key={idx}
+                    className="flex items-center gap-2 text-xs font-semibold text-charcoal bg-white p-2 rounded-xl border border-border-warm"
+                  >
+                    <span className="text-primary-green font-black">✓</span>
+                    <span>{item}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Verified Ingredients & Allergens Information */}
+          {(product.ingredients?.length || product.allergens?.length || product.spice_level) && (
+            <div className="p-3 rounded-xl bg-neutral-50 border border-neutral-200 text-xs space-y-1.5">
+              {product.spice_level && (
+                <div className="flex items-center gap-2 text-charcoal">
+                  <span className="font-bold text-muted-gray uppercase text-[10px] tracking-wider">Spice Level:</span>
+                  <span className="font-extrabold text-forest capitalize">
+                    {product.spice_level === 'hot' ? '🌶️ Hot & Spicy' : product.spice_level === 'medium' ? '🌶️ Medium Kick' : '🌿 Mild & Herbaceous'}
+                  </span>
+                </div>
+              )}
+              {product.ingredients && product.ingredients.length > 0 && (
+                <div className="text-charcoal leading-relaxed">
+                  <span className="font-bold text-muted-gray uppercase text-[10px] tracking-wider block">Ingredients:</span>
+                  <span>{product.ingredients.join(', ')}</span>
+                </div>
+              )}
+              {product.allergens && product.allergens.length > 0 && (
+                <div className="text-amber-800 leading-relaxed font-medium">
+                  <span className="font-bold uppercase text-[10px] tracking-wider text-amber-900 block">Allergen Notice:</span>
+                  <span>Contains or may contain: {product.allergens.join(', ')}. Freshly baked in a kitchen that handles wheat gluten and dairy.</span>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* 1. Size Selection (Pizzas Only) */}
           {isPizza && product.variants && product.variants.length > 0 && (
             <div className="space-y-2">
@@ -307,17 +368,23 @@ export function PizzaCustomizerModal({ product, onClose }: PizzaCustomizerModalP
           </div>
 
           {/* Add to Cart Button with Live Total */}
-          <button
-            type="button"
-            onClick={handleAddToCart}
-            disabled={isAddedSuccess}
-            className="flex-1 bg-primary-green hover:bg-forest text-white py-3 px-4 rounded-xl font-black text-sm flex items-center justify-between shadow-md transition transform active:scale-98 cursor-pointer"
-          >
-            <span>{isAddedSuccess ? '✓ Added to Cart!' : 'Add to Order'}</span>
-            <span className="bg-white/20 px-2.5 py-0.5 rounded-lg text-xs font-extrabold tracking-wide">
-              {formatINR(totalPrice)}
-            </span>
-          </button>
+          {product.is_available === false ? (
+            <div className="flex-1 bg-neutral-200 text-neutral-500 py-3 px-4 rounded-xl font-black text-sm text-center cursor-not-allowed">
+              Item Sold Out
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={handleAddToCart}
+              disabled={isAddedSuccess}
+              className="flex-1 bg-primary-green hover:bg-forest text-white py-3 px-4 rounded-xl font-black text-sm flex items-center justify-between shadow-md transition transform active:scale-98 cursor-pointer"
+            >
+              <span>{isAddedSuccess ? '✓ Added to Cart!' : 'Add to Order'}</span>
+              <span className="bg-white/20 px-2.5 py-0.5 rounded-lg text-xs font-extrabold tracking-wide">
+                {formatINR(totalPrice)}
+              </span>
+            </button>
+          )}
         </div>
       </div>
     </div>

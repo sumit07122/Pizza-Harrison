@@ -83,6 +83,12 @@ export interface Product {
   image_url?: string;
   is_veg: boolean;
   is_spicy: boolean;
+  spice_level?: 'mild' | 'medium' | 'hot';
+  ingredients?: string[];
+  allergens?: string[];
+  combo_items?: string[];
+  original_price_paise?: number;
+  combo_savings_paise?: number;
   is_bestseller: boolean;
   is_featured: boolean;
   is_available: boolean;
@@ -91,6 +97,28 @@ export interface Product {
   sort_order: number;
   variants?: ProductVariant[];
   category?: Category;
+}
+
+export type ChecklistType = 'opening' | 'closing';
+
+export interface DailyChecklistItem {
+  id: string;
+  task: string;
+  category: 'operations' | 'inventory' | 'kitchen' | 'safety' | 'financial';
+  completed: boolean;
+  completed_by?: string;
+  completed_at?: string;
+  notes?: string;
+}
+
+export interface DailyChecklistRecord {
+  id: string;
+  date: string; // YYYY-MM-DD
+  type: ChecklistType;
+  items: DailyChecklistItem[];
+  submitted_by?: string;
+  submitted_at?: string;
+  status: 'pending' | 'in_progress' | 'completed';
 }
 
 export interface CartItemAddon {
@@ -406,5 +434,28 @@ export interface LoyaltyLedgerEntry {
   reason: string;
   recorded_by: string;
   created_at: string;
+}
+
+// ==========================================
+// STORE OPERATIONS: DAILY SOP CHECKLISTS
+// ==========================================
+
+export interface DailyChecklistItem {
+  id: string;
+  task: string;
+  completed: boolean;
+  completed_by?: string;
+  completed_at?: string;
+}
+
+export interface DailyChecklistRecord {
+  id: string;
+  date: string;
+  type: 'opening' | 'closing';
+  status: 'pending' | 'in_progress' | 'completed';
+  items: DailyChecklistItem[];
+  submitted_by?: string;
+  submitted_at?: string;
+  notes?: string;
 }
 
