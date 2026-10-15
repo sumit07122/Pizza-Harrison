@@ -15,6 +15,7 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { useCustomerAuth } from '@/lib/store/customer-auth-context';
+import { GoogleAuthButton } from '@/components/auth/GoogleAuthButton';
 
 function LoginContent() {
   const router = useRouter();
@@ -137,6 +138,26 @@ function LoginContent() {
           <p className="text-xs text-muted-gray mt-1">
             Access your orders, rewards, saved addresses & exclusive offers in Mathura
           </p>
+        </div>
+
+        {/* Google One-Click Login */}
+        <div className="mb-6">
+          <GoogleAuthButton
+            mode="login"
+            redirectUrl={redirectUrl}
+            buttonText="Continue with Google"
+          />
+
+          <div className="relative my-5">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-border-warm" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-white px-3 text-muted-gray font-bold text-[10px] tracking-wider">
+                Or sign in with Phone
+              </span>
+            </div>
+          </div>
         </div>
 
         {/* Tab Switcher */}

@@ -2378,6 +2378,76 @@ export async function findCustomerById(id: string): Promise<CustomerAccount | nu
   return customer ? JSON.parse(JSON.stringify(customer)) : null;
 }
 
+export async function findCustomerByEmail(email: string): Promise<CustomerAccount | null> {
+  const cleanEmail = email.trim().toLowerCase();
+  const customer = memoryStore.customers.find((c) => c.email && c.email.toLowerCase() === cleanEmail);
+  return customer ? JSON.parse(JSON.stringify(customer)) : null;
+}
+
+export async function findOrCreateCustomerFromGoogle(profile: {
+  email: string;
+  name: string;
+  google_id?: string;
+  avatar_url?: string;
+}): Promise<{ customer: CustomerAccount; isNew: boolean }> {
+  const cleanEmail = profile.email.trim().toLowerCase();
+  const existing = memoryStore.customers.find(
+    (c) => (c.email && c.email.toLowerCase() === cleanEmail) || (Boolean(profile.google_id) && c.google_id === profile.google_id)
+  );
+
+  if (existing) {
+    if (!existing.email_verified) existing.email_verified = true;
+    if (profile.avatar_url && !existing.avatar_url) existing.avatar_url = profile.avatar_url;
+    if (profile.google_id && !existing.google_id) existing.google_id = profile.google_id;
+    existing.updated_at = new Date().toISOString();
+    return { customer: JSON.parse(JSON.stringify(existing)), isNew: false };
+  }
+
+  const newCustomer: CustomerAccount = {
+    id: `cust-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+    phone: '',
+    phone_verified: false,
+    full_name: profile.name.trim() || cleanEmail.split('@')[0],
+    email: cleanEmail,
+    email_verified: true,
+    google_id: profile.google_id,
+    avatar_url: profile.avatar_url,
+    saved_addresses: [],
+    favorites: [],
+    loyalty_stamps: 0,
+    total_orders: 0,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+
+  const supabase = getSupabaseServerClient();
+  if (supabase) {
+    try {
+      await supabase.from('customers').insert({
+        id: newCustomer.id,
+        phone: newCustomer.phone || null,
+        email: newCustomer.email,
+        full_name: newCustomer.full_name,
+        created_at: newCustomer.created_at,
+        updated_at: newCustomer.updated_at,
+      });
+    } catch (e) {
+      console.warn('Supabase customer insert from Google:', e);
+    }
+  }
+
+  memoryStore.customers.unshift(newCustomer);
+  addAuditLogEntry({
+    user_name: newCustomer.full_name,
+    action: 'CUSTOMER_REGISTERED_GOOGLE',
+    entity_type: 'customer',
+    entity_id: newCustomer.id,
+    details: `Customer signed up via Google account (${cleanEmail}).`,
+  });
+
+  return { customer: JSON.parse(JSON.stringify(newCustomer)), isNew: true };
+}
+
 export async function createCustomerAccount(data: {
   phone: string;
   full_name: string;

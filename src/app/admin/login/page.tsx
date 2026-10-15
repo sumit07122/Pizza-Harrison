@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Lock, Mail, ShieldCheck, ArrowRight, Store, AlertTriangle, KeyRound, CheckCircle2, Loader2 } from 'lucide-react';
 import { PRIMARY_ADMIN_EMAIL } from '@/lib/security/admin-edge';
+import { GoogleAuthButton } from '@/components/auth/GoogleAuthButton';
 
 function AdminLoginForm() {
   const router = useRouter();
@@ -109,6 +110,27 @@ function AdminLoginForm() {
             <span className="font-bold">{successMessage}</span>
           </div>
         )}
+
+        {/* Google Admin One-Click Login */}
+        <div className="space-y-3">
+          <GoogleAuthButton
+            mode="admin"
+            redirectUrl={redirectTarget}
+            buttonText="Sign in as Admin with Google"
+            className="!bg-[#141A14] !text-white !border-[#2D3A2D] hover:!bg-[#222C22] active:!bg-[#141A14]"
+          />
+
+          <div className="relative my-4">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-[#2D3A2D]" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-[#1E251E] px-3 text-neutral-400 font-bold text-[10px] tracking-wider font-mono">
+                Or Master Password / Key
+              </span>
+            </div>
+          </div>
+        </div>
 
         <form onSubmit={handleLogin} className="space-y-4">
           <div>

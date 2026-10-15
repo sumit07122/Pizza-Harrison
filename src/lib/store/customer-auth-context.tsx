@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { CustomerAccount, CustomerAddress } from '@/lib/types';
+import { getSupabaseBrowserClient } from '@/lib/supabase/client';
 
 export interface CustomerAuthContextType {
   customer: CustomerAccount | null;
@@ -17,6 +18,7 @@ export interface CustomerAuthContextType {
   loginWithOtp: (phone: string, otp: string) => Promise<{ success: boolean; needsRegistration?: boolean; error?: string }>;
   registerAccount: (data: { phone: string; full_name: string; email?: string; password?: string; verificationToken?: string }) => Promise<{ success: boolean; error?: string }>;
   registerWithOtp: (data: { name?: string; full_name?: string; phone: string; email?: string; password?: string; otp?: string; verificationToken?: string }) => Promise<{ success: boolean; error?: string }>;
+  loginWithGoogle: (googleUser?: { email?: string; name?: string; avatar_url?: string; credential?: string }) => Promise<{ success: boolean; isNew?: boolean; error?: string }>;
   updateProfile: (data: { full_name?: string; name?: string; email?: string }) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   refreshCustomer: () => Promise<void>;
@@ -247,6 +249,52 @@ export function CustomerAuthProvider({ children }: { children: React.ReactNode }
     });
   };
 
+  const loginWithGoogle = async (googleUser?: {
+    email?: string;
+    name?: string;
+    avatar_url?: string;
+    credential?: string;
+  }) => {
+    try {
+      // 1. If Supabase is configured and no credentials passed directly, try Supabase OAuth
+      const supabase = getSupabaseBrowserClient();
+      if (supabase && (!googleUser || (!googleUser.email && !googleUser.credential))) {
+        const { error } = await supabase.auth.signInWithOAuth({
+          provider: 'google',
+          options: {
+            redirectTo: typeof window !== 'undefined' ? `${window.location.origin}/api/auth/callback` : undefined,
+          },
+        });
+        if (error) {
+          console.warn('Supabase Google OAuth error:', error);
+        } else {
+          return { success: true };
+        }
+      }
+
+      // 2. Direct Google Auth API endpoint
+      const res = await fetch('/api/auth/google', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(googleUser || {}),
+      });
+
+      const data = await res.json();
+      if (data.success && data.customer) {
+        setCustomer(data.customer);
+        if (data.sessionToken) {
+          setToken(data.sessionToken);
+          if (typeof window !== 'undefined') localStorage.setItem('ph_customer_token', data.sessionToken);
+        }
+        return { success: true, isNew: data.isNew };
+      }
+
+      return { success: false, error: data.error || 'Google Sign-In failed.' };
+    } catch (e: any) {
+      return { success: false, error: 'Network error connecting to Google Sign-In.' };
+    }
+  };
+
   const updateProfile = async (data: { full_name?: string; name?: string; email?: string }) => {
     try {
       const storedToken = token || (typeof window !== 'undefined' ? localStorage.getItem('ph_customer_token') : null);
@@ -365,6 +413,7 @@ export function CustomerAuthProvider({ children }: { children: React.ReactNode }
         loginWithOtp,
         registerAccount,
         registerWithOtp,
+        loginWithGoogle,
         updateProfile,
         logout,
         refreshCustomer,

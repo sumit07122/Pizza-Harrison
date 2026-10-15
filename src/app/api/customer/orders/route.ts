@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Retrieve only orders matching this verified customer
-    const orders = await getCustomerOrders(sessionRes.customer.phone);
+    const orders = await getCustomerOrders(sessionRes.customer.phone || sessionRes.customer.id);
 
     return NextResponse.json({
       success: true,

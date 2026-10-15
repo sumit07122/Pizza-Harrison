@@ -504,6 +504,8 @@ export interface CustomerAccount {
   name?: string; // alias
   email?: string;
   email_verified?: boolean;
+  avatar_url?: string;
+  google_id?: string;
   password_hash?: string; // salt:hash format
   saved_addresses: CustomerAddress[];
   favorites: string[]; // product IDs

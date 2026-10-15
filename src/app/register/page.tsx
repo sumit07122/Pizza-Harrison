@@ -16,6 +16,7 @@ import {
   Gift,
 } from 'lucide-react';
 import { useCustomerAuth } from '@/lib/store/customer-auth-context';
+import { GoogleAuthButton } from '@/components/auth/GoogleAuthButton';
 
 function RegisterContent() {
   const router = useRouter();
@@ -141,6 +142,26 @@ function RegisterContent() {
             <span className="text-muted-gray text-[11px]">
               Earn stamps on orders ₹299+ and unlock free wood-fired pizzas!
             </span>
+          </div>
+        </div>
+
+        {/* Google One-Click Registration */}
+        <div className="mb-6">
+          <GoogleAuthButton
+            mode="register"
+            redirectUrl={redirectUrl}
+            buttonText="Sign up with Google"
+          />
+
+          <div className="relative my-5">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-border-warm" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-white px-3 text-muted-gray font-bold text-[10px] tracking-wider">
+                Or register with Mobile OTP
+              </span>
+            </div>
           </div>
         </div>
 
