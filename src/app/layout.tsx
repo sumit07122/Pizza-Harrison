@@ -36,7 +36,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="h-full antialiased scroll-smooth">
-      <body className="min-h-full flex flex-col bg-warm-cream text-charcoal pb-18 lg:pb-0">
+      <body className="min-h-full flex flex-col bg-warm-cream text-charcoal pb-[calc(4.75rem+env(safe-area-inset-bottom,0px))] lg:pb-0">
         <CustomerAuthProvider>
           <CartProvider>
             {children}

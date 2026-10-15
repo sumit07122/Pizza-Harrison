@@ -47,6 +47,7 @@ html {
   scroll-behavior: smooth;
   text-size-adjust: 100%;
   -webkit-text-size-adjust: 100%;
+  overflow-x: clip;
 }
 
 body {
@@ -55,8 +56,9 @@ body {
   font-family: var(--font-inter);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  overflow-x: hidden;
+  overflow-x: clip;
   min-height: 100dvh;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* Fast 0ms tap response on touch devices */
@@ -69,6 +71,12 @@ button, a, input, select, textarea {
   input, select, textarea {
     font-size: 16px !important;
   }
+}
+
+/* Hardware accelerated transform utility */
+.gpu-accel {
+  transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
 }
 
 /* Safe Area Padding Utilities for iPhone Notch / Dynamic Island / Home Indicator */

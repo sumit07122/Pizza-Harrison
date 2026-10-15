@@ -27,25 +27,25 @@ export function MobileBottomBar() {
     <>
       {/* Floating Active Cart Strip for Instant Checkout on Mobile */}
       {itemCount > 0 && pathname !== '/cart' && (
-        <div className="lg:hidden fixed bottom-[68px] left-0 right-0 z-40 px-3 pointer-events-none animate-in slide-in-from-bottom-3 duration-200">
+        <div className="lg:hidden fixed bottom-[calc(62px+env(safe-area-inset-bottom,0px))] left-0 right-0 z-40 px-3 pointer-events-none animate-in slide-in-from-bottom-2 duration-200">
           <button
             onClick={openCartDrawer}
-            className="w-full max-w-md mx-auto pointer-events-auto bg-gradient-to-r from-tomato to-[#E03A2E] text-white py-3 px-4 rounded-2xl shadow-xl flex items-center justify-between border border-red-400/40 transform active:scale-98 transition cursor-pointer"
+            className="w-full max-w-md mx-auto pointer-events-auto bg-gradient-to-r from-tomato to-[#E03A2E] text-white py-2.5 px-3.5 rounded-2xl shadow-xl flex items-center justify-between border border-red-400/40 transform active:scale-[0.98] transition cursor-pointer select-none"
             aria-label="View current cart"
           >
             <div className="flex items-center gap-2.5 text-left">
-              <div className="w-8 h-8 rounded-xl bg-white/20 backdrop-blur-xs flex items-center justify-center font-black text-sm">
+              <div className="w-7 h-7 rounded-xl bg-white/20 backdrop-blur-xs flex items-center justify-center font-black text-xs text-white">
                 {itemCount}
               </div>
               <div>
-                <div className="text-xs font-bold leading-tight">Your Pizza Order</div>
+                <div className="text-[11px] font-bold leading-tight">Your Pizza Order</div>
                 <div className="text-[11px] font-semibold text-white/90">
                   Total: {formatINR(totalPaise)}
                 </div>
               </div>
             </div>
 
-            <div className="flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wide bg-white text-tomato px-3 py-1.5 rounded-xl shadow-xs">
+            <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wide bg-white text-tomato px-2.5 py-1.5 rounded-xl shadow-xs">
               <span>View Cart</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </div>
@@ -56,7 +56,7 @@ export function MobileBottomBar() {
       {/* Main Glassmorphic Mobile Bottom Navigation Bar */}
       <nav
         aria-label="Mobile Bottom Navigation"
-        className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#121A14]/95 backdrop-blur-xl border-t border-[#233327] shadow-2xl pb-[max(0.6rem,env(safe-area-inset-bottom))] pt-2 px-3 transition-transform"
+        className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#0E1711]/95 backdrop-blur-xl border-t border-[#1E2B20] shadow-2xl pb-[max(0.6rem,env(safe-area-inset-bottom,0px))] pt-1.5 px-3 select-none"
       >
         <div className="max-w-md mx-auto grid grid-cols-5 items-center gap-1 text-center">
           {tabs.map((tab) => {
@@ -67,16 +67,17 @@ export function MobileBottomBar() {
               <Link
                 key={tab.href}
                 href={tab.href}
-                className={`relative flex flex-col items-center justify-center py-1 rounded-xl transition ${
+                aria-current={isActive ? 'page' : undefined}
+                className={`relative flex flex-col items-center justify-center py-1 rounded-xl transition transform active:scale-90 ${
                   isActive
                     ? 'text-emerald-400 font-bold'
                     : 'text-neutral-400 hover:text-white font-medium'
                 }`}
               >
                 <div className="relative">
-                  <Icon className={`w-5 h-5 transition-transform ${isActive ? 'scale-110' : ''}`} />
+                  <Icon className={`w-5 h-5 transition-transform duration-200 ${isActive ? 'scale-110 text-emerald-400' : ''}`} />
                   {tab.badge && (
-                    <span className="absolute -top-1.5 -right-3.5 bg-tomato text-[9px] font-black text-white px-1 py-0.2 rounded-full uppercase scale-90 tracking-tighter">
+                    <span className="absolute -top-1.5 -right-3.5 bg-tomato text-[8px] font-black text-white px-1 py-0.2 rounded-full uppercase scale-90 tracking-tighter">
                       {tab.badge}
                     </span>
                   )}
@@ -94,13 +95,13 @@ export function MobileBottomBar() {
           {/* Cart Tab in Mobile Bar */}
           <button
             onClick={openCartDrawer}
-            className="relative flex flex-col items-center justify-center py-1 rounded-xl text-neutral-300 hover:text-white cursor-pointer"
+            className="relative flex flex-col items-center justify-center py-1 rounded-xl text-neutral-300 hover:text-white cursor-pointer transform active:scale-90"
             aria-label="Cart"
           >
             <div className="relative">
               <ShoppingBag className="w-5 h-5 text-emerald-400" />
               {itemCount > 0 && (
-                <span className="absolute -top-1.5 -right-2.5 bg-tomato text-[10px] font-black text-white w-4 h-4 rounded-full flex items-center justify-center shadow-xs">
+                <span className="absolute -top-1.5 -right-2.5 bg-tomato text-[9px] font-black text-white w-4 h-4 rounded-full flex items-center justify-center shadow-xs">
                   {itemCount}
                 </span>
               )}
@@ -114,3 +115,4 @@ export function MobileBottomBar() {
     </>
   );
 }
+
