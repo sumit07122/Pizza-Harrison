@@ -21,6 +21,7 @@ import {
   RotateCcw,
   ClipboardCheck,
   Phone,
+  Database,
 } from 'lucide-react';
 import { Order } from '@/lib/types';
 import { formatINR } from '@/lib/pricing';
@@ -38,6 +39,7 @@ export default function AdminDashboardPage() {
     closingDone: number;
     closingTotal: number;
   }>({ openingDone: 0, openingTotal: 6, closingDone: 0, closingTotal: 6 });
+  const [dbStatus, setDbStatus] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchOverview = async () => {
@@ -47,15 +49,20 @@ export default function AdminDashboardPage() {
       if (dateRange === 'custom' && startDate && endDate) {
         url += `&startDate=${startDate}&endDate=${endDate}`;
       }
-      const [ovRes, invRes, chkRes] = await Promise.all([
+      const [ovRes, invRes, chkRes, dbRes] = await Promise.all([
         fetch(url),
         fetch('/api/admin/inventory').catch(() => null),
         fetch('/api/admin/checklists').catch(() => null),
+        fetch('/api/admin/db-status').catch(() => null),
       ]);
       const data = await ovRes.json();
       if (data.success) {
         setAnalytics(data.analytics);
         setRecentOrders(data.recentOrders || []);
+      }
+      if (dbRes) {
+        const dbData = await dbRes.json().catch(() => null);
+        if (dbData?.success) setDbStatus(dbData.database);
       }
       if (invRes) {
         const invData = await invRes.json();
@@ -99,11 +106,24 @@ export default function AdminDashboardPage() {
       {/* Top Banner & Date Filter Bar */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white p-5 rounded-3xl border border-border-warm shadow-xs">
         <div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
             <h1 className="text-xl sm:text-2xl font-black text-forest font-serif">
               Operations & Business Dashboard
             </h1>
+            <span className="bg-emerald-100 text-emerald-800 text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border border-emerald-300">
+              Admin: sumitdevthakur@gmail.com
+            </span>
+            {dbStatus && (
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border flex items-center gap-1 ${
+                dbStatus.connected
+                  ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                  : 'bg-amber-100 text-amber-800 border-amber-300'
+              }`}>
+                <Database className="w-2.5 h-2.5" />
+                {dbStatus.connected ? 'Supabase Live' : 'Resilient DB'}
+              </span>
+            )}
           </div>
           <p className="text-xs text-muted-gray mt-1">
             Real-time financial telemetry, kitchen throughput, and order metrics across Mathura.

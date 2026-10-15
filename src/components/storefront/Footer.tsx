@@ -119,12 +119,9 @@ export function Footer() {
             </div>
 
             <div className="pt-2">
-              <Link
-                href="/admin"
-                className="text-[11px] text-warm-cream/60 hover:text-white underline"
-              >
-                Restaurant Administration & Kitchen KDS Portal →
-              </Link>
+              <p className="text-[11px] text-warm-cream/60 italic">
+                Braj’s beloved artisan pizzeria • Freshly hand-stretched in Mathura.
+              </p>
             </div>
           </div>
 

@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard,
   UtensilsCrossed,
@@ -15,7 +15,11 @@ import {
   ChevronRight,
   ShieldCheck,
   X,
+  LogOut,
+  Users,
+  Award,
 } from 'lucide-react';
+import { PRIMARY_ADMIN_EMAIL } from '@/lib/security/admin-edge';
 
 interface AdminSidebarProps {
   isOpen: boolean;
@@ -31,10 +35,21 @@ export function AdminSidebar({
   onToggleCollapse,
 }: AdminSidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/admin/auth/logout', { method: 'POST' });
+    } catch (e) {}
+    router.push('/');
+    router.refresh();
+  };
 
   const mainNavItems = [
     { label: 'Overview', href: '/admin', icon: LayoutDashboard },
     { label: 'Orders & Kitchen', href: '/admin/orders', icon: UtensilsCrossed },
+    { label: 'Customer Directory', href: '/admin/customers', icon: Users },
+    { label: 'Loyalty Rewards', href: '/admin/rewards', icon: Award },
     { label: 'Inventory & Stock', href: '/admin/inventory', icon: Package },
     { label: 'Menu & Offers', href: '/admin/menu', icon: Pizza },
     { label: 'Sales & Expenses', href: '/admin/sales-expenses', icon: BarChart3 },
@@ -116,6 +131,21 @@ export function AdminSidebar({
 
         {/* Bottom Profile & Toggle */}
         <div className="p-3 border-t border-[#2C352C] space-y-2 bg-[#161B16]">
+          {/* Admin User Info */}
+          {!collapsed ? (
+            <div className="bg-[#212921] rounded-xl p-2.5 border border-[#2D3A2D] text-xs">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="font-bold text-white text-[11px] truncate">
+                  Sumit Dev Thakur
+                </span>
+              </div>
+              <div className="text-[10px] text-neutral-400 font-mono truncate mt-0.5">
+                {PRIMARY_ADMIN_EMAIL}
+              </div>
+            </div>
+          ) : null}
+
           {/* Back to Public Storefront */}
           <Link
             href="/"
@@ -128,12 +158,24 @@ export function AdminSidebar({
             {!collapsed && <span>Customer Storefront</span>}
           </Link>
 
+          {/* Sign Out Button */}
+          <button
+            onClick={handleLogout}
+            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs text-red-400 hover:text-red-300 hover:bg-red-950/40 transition font-semibold cursor-pointer ${
+              collapsed ? 'justify-center' : ''
+            }`}
+            title="Sign out of Admin"
+          >
+            <LogOut className="w-4 h-4 shrink-0 text-red-400" />
+            {!collapsed && <span>Sign Out Admin</span>}
+          </button>
+
           {/* Desktop Collapse Toggle */}
           <div className="hidden lg:flex items-center justify-between pt-2 border-t border-[#2C352C]/60 text-xs text-neutral-400">
             {!collapsed && (
               <div className="flex items-center gap-1.5 text-[11px]">
                 <ShieldCheck className="w-3.5 h-3.5 text-primary-green" />
-                <span>Authorized Staff</span>
+                <span>Super Admin</span>
               </div>
             )}
             <button

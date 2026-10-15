@@ -897,6 +897,16 @@ export const INITIAL_BOOKINGS: Booking[] = [
 
 export const INITIAL_STAFF_MEMBERS: Profile[] = [
   {
+    id: 'st-admin-root',
+    full_name: 'Sumit Dev Thakur',
+    phone: '7451800502',
+    email: 'sumitdevthakur@gmail.com',
+    role: 'owner',
+    is_active: true,
+    created_at: '2026-01-01T00:00:00Z',
+    updated_at: '2026-01-01T00:00:00Z',
+  },
+  {
     id: 'st-1',
     full_name: 'Harrison Sharma',
     phone: '7451800502',

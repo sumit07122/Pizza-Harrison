@@ -185,13 +185,6 @@ export function Navbar() {
               </span>
             </Link>
 
-            {/* Admin Portal Shortcut */}
-            <Link
-              href="/admin"
-              className="hidden xl:inline-block text-xs font-bold text-muted-gray hover:text-forest transition px-2 py-1 rounded border border-border-warm hover:border-forest"
-            >
-              Staff KDS
-            </Link>
 
             {/* Mobile Menu Hamburger */}
             <button
@@ -272,11 +265,11 @@ export function Navbar() {
                 <Phone className="w-3.5 h-3.5 text-primary-green" /> Call: {RESTAURANT_PHONE}
               </a>
               <Link
-                href="/admin"
+                href="/order-tracking/search"
                 onClick={() => setMobileMenuOpen(false)}
                 className="text-xs font-semibold text-primary-green bg-white px-3 py-2 rounded-lg border border-border-warm"
               >
-                Kitchen KDS Board →
+                Track Order 🛵 →
               </Link>
             </div>
           </div>
