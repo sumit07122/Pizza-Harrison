@@ -137,6 +137,51 @@ This software platform provides a unified, production-grade digital ecosystem co
 - Category Management: Create, edit, reorder categories.
 - Product Catalog: Add new items, edit names, descriptions, images, vegetarian tags.
 - Price & Variant Management: Set exact prices in paise for Regular, Medium, Large sizes.
+#### J. Customer Registration & Accounts (`/login`, `/register`, `/account`)
+- **Dual-Mode Sign In**: SMS OTP code (with sandbox test notification in development) or PBKDF2 salted password.
+- **Verified Mobile Signup**: Requires 6-digit OTP phone verification before creating customer account.
+- **Customer Account Portal (`/account`)**:
+  - Saved Delivery Address Book (Home, Hostel, Work/Office, Other) with default address toggle for 1-click checkout.
+  - Order History & 1-Click Reorder (verifies live product stock before adding past items to cart).
+  - Saved Pizza Favorites with direct menu shortcuts.
+  - Profile Management (name, email) with immutable verified mobile number.
+  - Persistent 7-day session token with full session revocation on sign out.
+
+#### K. Anti-Fake Order & Anti-Abuse Checkout Protection
+- **Phone Verification Enforcement**: Checkout requires verified phone ownership via token or active session.
+- **Server Authoritative Pricing**: Discards client prices and recalculates every variant, crust, add-on, tax (5% GST), and delivery fee from authoritative database records.
+- **Idempotency Protection**: Unique `idem_*` token prevents double-orders from accidental repeated clicks or network retry loops.
+- **Per-Customer Coupon Caps**: Single-use promo codes (e.g. `GLA100`) strictly restricted to 1 use per customer mobile number.
+- **Sliding-Window Rate Limiting**: Server throttles rapid checkout, login, and OTP requests.
+
+#### L. Pizza Harrison Rewards Loyalty Engine (`/rewards`, `/account`)
+- **6-Stamp Cycle**: 1 stamp awarded per completed order with qualifying food subtotal ≥ ₹299.
+- **Reward Unlocks**: 6 stamps unlock 1 Free Handcrafted Pizza from the store.
+- **Automated Lifecycle**: Stamps automatically awarded on order completion; reversed on order cancellation or refund.
+- **Audited Staff Adjustments**: Staff can credit/debit stamps with a mandatory audit reason.
+
+---
+
+### 3.2 Restaurant Administration & Kitchen Display Operations Portal (`/admin`)
+
+#### A. Real-time Overview Dashboard (`/admin`)
+- Real-time order metrics: Today's Revenue, Delivered Count, Kitchen Queue, Low Stock Alerts, Store Open/Closed Toggle.
+- **Awaiting Call KPI Card**: Instant real-time counter of unconfirmed COD orders requiring telephone verification.
+
+#### B. Kitchen Display System (KDS) (`/admin/kitchen`)
+- Live Kanban lanes: Incoming, Baking, Quality Check / Packing, Out for Delivery.
+- **Unconfirmed COD Withholding**: Orders with `confirmation_status: 'pending_confirmation'` are strictly hidden from kitchen prep line until phone-confirmed by staff.
+- Distinct visual badges for Delivery vs Counter Pickup.
+- Audio chime on new order placement with mute toggle.
+
+#### C. Orders & Confirmation Pipeline (`/admin/orders`)
+- **Needs Confirmation (COD) Filter**: Dedicated queue for risky or first-time COD orders.
+- Direct staff verification action cards with click-to-call links.
+- One-click `[✓ Confirm]` to release order to kitchen or `[✗ Reject]` with cancellation reason.
+
+#### D. Product Catalog & Menu Administration (`/admin/menu`)
+- Dynamic category & product management.
+- Variant sizing: Regular 7", Medium 9", Large 12".
 - Crust & Add-on Management: Set addon prices and availability.
 - Quick Availability Toggle: Instant 1-click switch to mark any pizza or topping "Out of Stock" during peak rushes.
 
@@ -152,10 +197,12 @@ This software platform provides a unified, production-grade digital ecosystem co
 
 #### F. Store Settings & Operating Parameters (`/admin/settings`)
 - Operating hours per branch (Opening time, Closing time).
-- Emergency Store Closure toggle (e.g., "Temporarily closed due to heavy rain / power outage").
+- Emergency Store Closure toggle.
 - Delivery fee rules: Base delivery charge, free delivery minimum order threshold.
-- GST Percentage & packaging fee settings.
-- Direct contact numbers and support email.
+- **Anti-Fake Order & Fraud Controls**:
+  - Global Cash on Delivery (COD) enable/disable switch.
+  - Configurable COD confirmation threshold in Rupees (e.g. ₹1,500).
+  - Customer OTP verification enforcement toggle.
 
 #### G. Review Moderation (`/admin/reviews`)
 - Table of incoming customer reviews.
@@ -182,9 +229,14 @@ This software platform provides a unified, production-grade digital ecosystem co
 | :--- | :--- |
 | **Catalog Browsing** | User can browse all categories, filter by veg/specialty, search by name, and view accurate prices in INR without layout shifts. |
 | **Pizza Customization** | User can choose size, crust, and add-ons; modal updates item total dynamically with zero floating-point artifacts. |
+| **Customer Auth & Accounts**| Dual-mode login (OTP / PBKDF2), profile management, address book CRUD, order history, and reorder. |
+| **Phone OTP Verification** | Legitimate OTP flow; rejects expired or reused codes; locks out after 3 wrong attempts; reports sandbox mode transparently. |
 | **Cart Persistence** | Adding items retains customizations; cart persists across page navigation and page reloads. |
-| **Checkout Pricing** | Server recalculates subtotal, applies coupon if valid, computes delivery fee and 5% GST; rejects forged client totals. |
-| **Order Placement** | Order creates persistent records in `orders` and `order_items` with unique tracking ID `PH-YYYYMMDD-XXXX`. |
+| **Server-Side Pricing** | Server recalculates subtotal, applies coupon if valid, computes delivery fee and 5% GST; rejects forged client totals. |
+| **Idempotency & Anti-Duplication** | Duplicate submissions with matching idempotency key return cached order; 0 duplicate database orders. |
+| **Anti-Fraud COD Queue** | First-time COD or ≥ ₹1,500 held in `pending_confirmation`; withheld from KDS; confirmed via staff queue. |
+| **Coupon Abuse Prevention** | Single-use coupons enforce per-customer usage cap on server; blocked on second attempt. |
+| **Loyalty Program** | 6-stamp cycles on qualifying food spend (≥ ₹299); idempotent credits; automatically reversed on refund. |
 | **Live Tracking** | Customer can view real-time status progression; polling or Supabase Realtime updates UI automatically. |
 | **Table Booking** | Customer books table; record saved with status `requested`; admin receives notification and can confirm/seat. |
 | **Admin Kitchen Flow**| Staff can move order from `placed` to `confirmed` -> `preparing` -> `out_for_delivery` -> `completed` with immutable history. |

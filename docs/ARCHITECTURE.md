@@ -62,6 +62,16 @@ graph TD
 3. **Protected Admin Routes**:
    - Route middleware (`middleware.ts`) and server-side layout guards check JWT session claims and verify user role (`admin`, `manager`, `staff`) against the `profiles` table.
    - Unauthenticated or unauthorized visitors attempting to access `/admin/*` are redirected to `/admin/login`.
+4. **Phone Ownership & Cryptographic Verification**:
+   - Customer authentication uses timing-safe HMAC-SHA256 OTP verification and 100,000-iteration PBKDF2 password hashing.
+   - Replay protection, brute-force locking after 3 failed attempts, and 5-minute code expiration.
+   - In development/sandbox environments, test OTP codes are transparently logged without fabricating SMS delivery.
+5. **Anti-Fake Order & Fraud Mitigation**:
+   - Unique idempotency key cache deduplicates concurrent order submissions.
+   - In-memory sliding-window rate limiter guards login, OTP generation, checkout, and coupon checks.
+   - First-time COD customers and orders exceeding store threshold (default: ₹1,500) are flagged as `pending_confirmation`, withheld from the kitchen display system (KDS), and routed to a dedicated staff confirmation queue.
+6. **Customer Data Isolation (Anti-IDOR)**:
+   - Customer order histories and profiles strictly require verified matching phone numbers or active session tokens. Public order tracking requires customer phone verification.
 
 ---
 

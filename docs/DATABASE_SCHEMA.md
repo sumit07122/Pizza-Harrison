@@ -162,6 +162,9 @@ CREATE TABLE orders (
     delivery_landmark TEXT,
     delivery_instructions TEXT,
     status order_status_enum NOT NULL DEFAULT 'placed',
+    confirmation_status VARCHAR(32) NOT NULL DEFAULT 'confirmed' CHECK (confirmation_status IN ('confirmed', 'pending_confirmation', 'rejected')),
+    confirmation_reason TEXT,
+    idempotency_key VARCHAR(128) UNIQUE,
     payment_method payment_method_enum NOT NULL DEFAULT 'cod',
     payment_status payment_status_enum NOT NULL DEFAULT 'pending',
     subtotal_paise BIGINT NOT NULL CHECK (subtotal_paise >= 0),
@@ -172,14 +175,18 @@ CREATE TABLE orders (
     total_paise BIGINT NOT NULL CHECK (total_paise >= 0),
     applied_coupon_code VARCHAR(32),
     notes TEXT,
+    internal_notes TEXT,
     cancellation_reason TEXT,
+    cancelled_by TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX idx_orders_status ON orders(status);
+CREATE INDEX idx_orders_confirmation_status ON orders(confirmation_status);
 CREATE INDEX idx_orders_created_at ON orders(created_at DESC);
 CREATE INDEX idx_orders_customer_phone ON orders(customer_phone);
+CREATE INDEX idx_orders_idempotency ON orders(idempotency_key);
 CREATE INDEX idx_orders_branch ON orders(branch);
 ```
 
@@ -325,6 +332,126 @@ CREATE TABLE audit_logs (
 );
 
 CREATE INDEX idx_audit_logs_created ON audit_logs(created_at DESC);
+```
+
+### 3.15 `customers` & `customer_addresses`
+Dedicated customer identity and address book repository.
+```sql
+CREATE TABLE customers (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    phone VARCHAR(15) NOT NULL UNIQUE,
+    phone_verified BOOLEAN NOT NULL DEFAULT true,
+    full_name TEXT NOT NULL,
+    email TEXT,
+    email_verified BOOLEAN NOT NULL DEFAULT false,
+    password_hash TEXT, -- salt:hash format (PBKDF2 100k rounds)
+    favorites JSONB DEFAULT '[]'::JSONB, -- Array of product IDs
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_customers_phone ON customers(phone);
+
+CREATE TABLE customer_addresses (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    customer_id UUID NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+    label VARCHAR(32) NOT NULL DEFAULT 'Home', -- 'Home', 'Hostel', 'Office', 'Other'
+    address_line TEXT NOT NULL,
+    landmark TEXT,
+    is_default BOOLEAN NOT NULL DEFAULT false,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_customer_addresses_cust ON customer_addresses(customer_id);
+```
+
+### 3.16 `customer_sessions`
+Authenticated customer session tokens with automatic TTL expiration.
+```sql
+CREATE TABLE customer_sessions (
+    token VARCHAR(128) PRIMARY KEY,
+    customer_id UUID NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+    phone VARCHAR(15) NOT NULL,
+    expires_at BIGINT NOT NULL, -- Timestamp in milliseconds
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_customer_sessions_expires ON customer_sessions(expires_at);
+```
+
+### 3.17 `phone_verifications`
+HMAC-hashed OTP records with rate limiting and brute-force lockout safeguards.
+```sql
+CREATE TABLE phone_verifications (
+    id VARCHAR(64) PRIMARY KEY, -- vreq-timestamp-random
+    phone VARCHAR(15) NOT NULL,
+    otp_hash VARCHAR(128) NOT NULL, -- HMAC-SHA256 signature
+    expires_at BIGINT NOT NULL,
+    attempts INT NOT NULL DEFAULT 0,
+    verified BOOLEAN NOT NULL DEFAULT false,
+    created_at BIGINT NOT NULL
+);
+
+CREATE INDEX idx_phone_verif_phone ON phone_verifications(phone);
+CREATE INDEX idx_phone_verif_expires ON phone_verifications(expires_at);
+```
+
+### 3.18 `order_idempotency_keys`
+Deduplication cache for checkout requests to prevent duplicate orders.
+```sql
+CREATE TABLE order_idempotency_keys (
+    idempotency_key VARCHAR(128) PRIMARY KEY,
+    order_id UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+    created_at BIGINT NOT NULL
+);
+```
+
+### 3.19 `loyalty_accounts` & `loyalty_ledger`
+6-stamp loyalty cycle engine with immutable audit ledger.
+```sql
+CREATE TABLE loyalty_accounts (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    customer_phone VARCHAR(15) NOT NULL UNIQUE,
+    customer_name TEXT NOT NULL,
+    stamps_count INT NOT NULL DEFAULT 0,
+    total_stamps_earned INT NOT NULL DEFAULT 0,
+    available_rewards_count INT NOT NULL DEFAULT 0,
+    rewards_redeemed_count INT NOT NULL DEFAULT 0,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_loyalty_phone ON loyalty_accounts(customer_phone);
+
+CREATE TABLE loyalty_ledger (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    customer_phone VARCHAR(15) NOT NULL,
+    event_type VARCHAR(32) NOT NULL, -- 'order_completed', 'reward_redeemed', 'refund_revocation', 'manual_adjustment'
+    stamps_delta INT NOT NULL,
+    order_id UUID REFERENCES orders(id) ON DELETE SET NULL,
+    reason TEXT NOT NULL,
+    recorded_by VARCHAR(64) NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_loyalty_ledger_phone ON loyalty_ledger(customer_phone, created_at DESC);
+```
+
+### 3.20 `daily_checklists`
+Kitchen and store opening/closing compliance tracking.
+```sql
+CREATE TABLE daily_checklists (
+    id VARCHAR(64) PRIMARY KEY, -- chk-YYYY-MM-DD-opening
+    checklist_date DATE NOT NULL,
+    type VARCHAR(16) NOT NULL CHECK (type IN ('opening', 'closing')),
+    status VARCHAR(16) NOT NULL DEFAULT 'pending', -- 'pending', 'in_progress', 'completed'
+    items JSONB NOT NULL DEFAULT '[]'::JSONB,
+    submitted_by VARCHAR(64),
+    submitted_at TIMESTAMPTZ,
+    notes TEXT
+);
+
+CREATE INDEX idx_daily_checklists_date ON daily_checklists(checklist_date, type);
 ```
 
 ---
