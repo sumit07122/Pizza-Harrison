@@ -30,6 +30,23 @@
 
   --background: var(--color-warm-cream);
   --foreground: var(--color-charcoal);
+
+  /* iOS Safe Area Insets */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  text-size-adjust: 100%;
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
@@ -38,6 +55,31 @@ body {
   font-family: var(--font-inter);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+  min-height: 100dvh;
+}
+
+/* Fast 0ms tap response on touch devices */
+button, a, input, select, textarea {
+  touch-action: manipulation;
+}
+
+/* Prevent iOS Safari from auto-zooming inputs on focus */
+@media screen and (max-width: 768px) {
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* Safe Area Padding Utilities for iPhone Notch / Dynamic Island / Home Indicator */
+.pt-safe {
+  padding-top: max(1rem, env(safe-area-inset-top, 0px));
+}
+.pb-safe {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom, 0px));
+}
+.pb-safe-nav {
+  padding-bottom: calc(75px + env(safe-area-inset-bottom, 0px));
 }
 
 /* Custom Utilities */

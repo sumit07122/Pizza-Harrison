@@ -33,7 +33,7 @@ export default function HomePage() {
         <Hero3D />
 
         {/* 2. Category Quick Discovery Ribbon */}
-        <div className="bg-[#FFFDF9] py-6 border-b border-border-warm shadow-2xs sticky top-20 z-30">
+        <div className="bg-[#FFFDF9] py-3 sm:py-5 border-b border-border-warm shadow-2xs sticky top-[72px] sm:top-20 z-30">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none text-xs sm:text-sm font-bold">
               {INITIAL_CATEGORIES.map((cat) => {

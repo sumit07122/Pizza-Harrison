@@ -3,6 +3,7 @@ import './globals.css';
 import { CartProvider } from '@/lib/store/cart-context';
 import { CustomerAuthProvider } from '@/lib/store/customer-auth-context';
 import { CartDrawer } from '@/components/storefront/CartDrawer';
+import { MobileBottomBar } from '@/components/storefront/MobileBottomBar';
 
 export const metadata: Metadata = {
   title: 'Pizza Harrison Mathura | Artisan Pizzas, Combos & Fast Delivery',
@@ -24,6 +25,8 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   maximumScale: 5,
+  viewportFit: 'cover',
+  themeColor: '#123D2B',
 };
 
 export default function RootLayout({
@@ -33,11 +36,12 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="h-full antialiased scroll-smooth">
-      <body className="min-h-full flex flex-col bg-warm-cream text-charcoal">
+      <body className="min-h-full flex flex-col bg-warm-cream text-charcoal pb-18 lg:pb-0">
         <CustomerAuthProvider>
           <CartProvider>
             {children}
             <CartDrawer />
+            <MobileBottomBar />
           </CartProvider>
         </CustomerAuthProvider>
       </body>

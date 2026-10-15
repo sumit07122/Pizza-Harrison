@@ -236,7 +236,7 @@ export function CartDrawer() {
 
           {/* Footer & Bill Breakdown (only shown when cart has items) */}
           {items.length > 0 && (
-            <div className="border-t border-border-warm bg-white p-4 space-y-3">
+            <div className="border-t border-border-warm bg-white p-4 space-y-3 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
               
               {/* Coupon Box */}
               <div>

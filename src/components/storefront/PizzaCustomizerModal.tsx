@@ -345,7 +345,7 @@ export function PizzaCustomizerModal({ product, onClose }: PizzaCustomizerModalP
         </div>
 
         {/* Modal Sticky Footer */}
-        <div className="p-4 bg-warm-cream border-t border-border-warm flex items-center justify-between gap-3">
+        <div className="p-4 pb-[max(1rem,env(safe-area-inset-bottom))] bg-warm-cream border-t border-border-warm flex items-center justify-between gap-3 sticky bottom-0 z-10 shadow-md">
           {/* Quantity Controls */}
           <div className="flex items-center gap-2 bg-white border border-border-warm rounded-xl p-1">
             <button

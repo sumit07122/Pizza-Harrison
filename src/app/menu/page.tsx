@@ -68,7 +68,7 @@ export default function MenuPage() {
         </div>
 
         {/* Filter & Search Bar */}
-        <div className="sticky top-20 z-30 bg-[#FFFDF9] border-b border-border-warm shadow-xs py-4">
+        <div className="sticky top-[72px] sm:top-20 z-30 bg-[#FFFDF9] border-b border-border-warm shadow-xs py-3 sm:py-4">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-3">
             
             {/* Search Input & Quick Toggles */}
