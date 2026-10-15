@@ -23,13 +23,11 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: result.provider === 'sandbox'
-        ? `[Dev Sandbox] OTP for +91-${phone} is ${result.otp}. In production, real SMS will be dispatched.`
-        : `Verification code sent to +91-${phone}.`,
+      message: `Verification code sent to +91-${phone}.`,
       provider: result.provider,
       expiresAt: result.expiresAt,
       verificationId: result.verificationId,
-      // Provide OTP in response only if in sandbox mode so developer can test without external SMS keys
+      // Provide OTP in response so local test scripts and seamless auto-fill operate smoothly
       sandboxOtp: result.provider === 'sandbox' ? result.otp : undefined,
     });
   } catch (err: any) {

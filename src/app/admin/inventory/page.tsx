@@ -101,6 +101,31 @@ export default function AdminInventoryPage() {
     setShowAdjustModal(true);
   };
 
+  const handleQuickDelta = async (item: InventoryItem, delta: number) => {
+    const newQty = Math.max(0, item.current_quantity + delta);
+    setItems((prev) =>
+      prev.map((i) => (i.id === item.id ? { ...i, current_quantity: newQty } : i))
+    );
+
+    try {
+      await fetch('/api/admin/inventory', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'adjustment',
+          item_id: item.id,
+          quantity_delta: delta,
+          movement_type: delta < 0 ? 'wastage' : 'manual_count',
+          reason: `1-Click quick ${delta > 0 ? '+' : ''}${delta} stock adjustment`,
+          recorded_by: 'Admin',
+        }),
+      });
+    } catch (e) {
+      console.error(e);
+      loadData();
+    }
+  };
+
   const handleSubmitPurchase = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedItem) return;
@@ -339,14 +364,32 @@ export default function AdminInventoryPage() {
                           </td>
                           <td className="py-3 px-4">
                             <div className="flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => handleQuickDelta(item, -1)}
+                                className="w-6 h-6 rounded-md bg-neutral-100 hover:bg-red-100 hover:text-red-700 font-bold text-xs flex items-center justify-center transition cursor-pointer"
+                                title="Decrease stock by 1"
+                              >
+                                -
+                              </button>
                               <span
-                                className={`font-black ${
-                                  isLow ? 'text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200' : 'text-charcoal'
+                                className={`font-black font-mono px-2 py-0.5 rounded-md min-w-[70px] text-center ${
+                                  isLow
+                                    ? 'text-amber-700 bg-amber-50 border border-amber-200'
+                                    : 'text-charcoal bg-neutral-50'
                                 }`}
                               >
                                 {item.current_quantity} {item.unit}
                               </span>
-                              {isLow && <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />}
+                              <button
+                                type="button"
+                                onClick={() => handleQuickDelta(item, 1)}
+                                className="w-6 h-6 rounded-md bg-neutral-100 hover:bg-emerald-100 hover:text-emerald-700 font-bold text-xs flex items-center justify-center transition cursor-pointer"
+                                title="Increase stock by 1"
+                              >
+                                +
+                              </button>
+                              {isLow && <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0" />}
                             </div>
                           </td>
                           <td className="py-3 px-4 text-neutral-500">

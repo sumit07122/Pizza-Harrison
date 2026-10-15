@@ -208,6 +208,110 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
+      {/* WordPress-Style Quick Management Hub */}
+      <div className="bg-white rounded-3xl p-6 border border-border-warm shadow-xs space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-border-warm">
+          <div>
+            <h2 className="text-base font-black text-forest font-serif flex items-center gap-2">
+              <span>⚡</span>
+              <span>WordPress Store Management Hub</span>
+            </h2>
+            <p className="text-xs text-muted-gray">
+              Direct 1-click access to manage live food menu, incoming orders, customers, and stock levels.
+            </p>
+          </div>
+          <span className="text-[11px] font-bold text-primary-green bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200 self-start sm:self-auto">
+            Store Owner: sumitdevthakur@gmail.com
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-1">
+          {/* Card 1: Food & Menu */}
+          <Link
+            href="/admin/menu"
+            className="p-4 rounded-2xl border border-border-warm bg-[#FAF7F0] hover:bg-white hover:border-primary-green hover:shadow-md transition group flex flex-col justify-between space-y-3"
+          >
+            <div className="flex items-start justify-between">
+              <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center text-lg">
+                🍕
+              </div>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-primary-green group-hover:translate-x-0.5 transition flex items-center gap-0.5">
+                Manage &rarr;
+              </span>
+            </div>
+            <div>
+              <h3 className="font-bold text-forest text-sm">Food & Menu Items</h3>
+              <p className="text-[11px] text-muted-gray mt-0.5">
+                Change food photos, 1-click toggle Available/Sold Out, edit prices in ₹.
+              </p>
+            </div>
+          </Link>
+
+          {/* Card 2: Live Orders */}
+          <Link
+            href="/admin/orders"
+            className="p-4 rounded-2xl border border-border-warm bg-[#FAF7F0] hover:bg-white hover:border-primary-green hover:shadow-md transition group flex flex-col justify-between space-y-3"
+          >
+            <div className="flex items-start justify-between">
+              <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-800 flex items-center justify-center text-lg">
+                📦
+              </div>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-blue-700 group-hover:translate-x-0.5 transition flex items-center gap-0.5">
+                Live Orders &rarr;
+              </span>
+            </div>
+            <div>
+              <h3 className="font-bold text-forest text-sm">Customer Orders</h3>
+              <p className="text-[11px] text-muted-gray mt-0.5">
+                Accept orders, send KOT to kitchen, dispatch delivery, and print bills.
+              </p>
+            </div>
+          </Link>
+
+          {/* Card 3: Customers */}
+          <Link
+            href="/admin/customers"
+            className="p-4 rounded-2xl border border-border-warm bg-[#FAF7F0] hover:bg-white hover:border-primary-green hover:shadow-md transition group flex flex-col justify-between space-y-3"
+          >
+            <div className="flex items-start justify-between">
+              <div className="w-10 h-10 rounded-xl bg-purple-100 text-purple-800 flex items-center justify-center text-lg">
+                👥
+              </div>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-purple-700 group-hover:translate-x-0.5 transition flex items-center gap-0.5">
+                Directory &rarr;
+              </span>
+            </div>
+            <div>
+              <h3 className="font-bold text-forest text-sm">Customer Directory</h3>
+              <p className="text-[11px] text-muted-gray mt-0.5">
+                View customer profiles, phone numbers, order count, and repeat patrons.
+              </p>
+            </div>
+          </Link>
+
+          {/* Card 4: Inventory */}
+          <Link
+            href="/admin/inventory"
+            className="p-4 rounded-2xl border border-border-warm bg-[#FAF7F0] hover:bg-white hover:border-primary-green hover:shadow-md transition group flex flex-col justify-between space-y-3"
+          >
+            <div className="flex items-start justify-between">
+              <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center text-lg">
+                📊
+              </div>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700 group-hover:translate-x-0.5 transition flex items-center gap-0.5">
+                Stock &rarr;
+              </span>
+            </div>
+            <div>
+              <h3 className="font-bold text-forest text-sm">Kitchen Inventory</h3>
+              <p className="text-[11px] text-muted-gray mt-0.5">
+                Track ingredients, cheese, flour, boxes, and quick stock adjustments.
+              </p>
+            </div>
+          </Link>
+        </div>
+      </div>
+
       {/* Low Stock Operational Warning */}
       {lowStockCount > 0 && (
         <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-xs">

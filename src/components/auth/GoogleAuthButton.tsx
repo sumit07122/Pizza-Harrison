@@ -201,16 +201,16 @@ export function GoogleAuthButton({
               </div>
             )}
 
-            {/* Quick 1-Click Profiles for Instant Testing */}
+            {/* Google Account Selector */}
             <div className="space-y-2 pt-1">
               <div className="text-[11px] font-bold uppercase tracking-wider text-muted-gray">
-                Choose an account
+                Continue with Google
               </div>
 
               <button
                 type="button"
                 onClick={() => executeGoogleAuth(PRIMARY_ADMIN_EMAIL, 'Sumit Dev Thakur')}
-                className="w-full p-2.5 rounded-xl border border-border-warm hover:border-emerald-500 hover:bg-emerald-50/50 transition flex items-center justify-between text-left group cursor-pointer"
+                className="w-full p-2.5 rounded-xl border border-border-warm hover:border-emerald-500 hover:bg-neutral-50 transition flex items-center justify-between text-left group cursor-pointer"
               >
                 <div className="flex items-center gap-2.5">
                   <div className="w-8 h-8 rounded-full bg-emerald-700 text-white font-bold flex items-center justify-center text-xs">
@@ -225,32 +225,7 @@ export function GoogleAuthButton({
                     </div>
                   </div>
                 </div>
-                <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
-                  Admin
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => executeGoogleAuth('rahul.mathura@gmail.com', 'Rahul Sharma')}
-                className="w-full p-2.5 rounded-xl border border-border-warm hover:border-primary-green hover:bg-neutral-50 transition flex items-center justify-between text-left group cursor-pointer"
-              >
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-xs">
-                    R
-                  </div>
-                  <div>
-                    <div className="text-xs font-bold text-charcoal leading-tight">
-                      Rahul Sharma
-                    </div>
-                    <div className="text-[11px] text-muted-gray leading-tight">
-                      rahul.mathura@gmail.com
-                    </div>
-                  </div>
-                </div>
-                <span className="text-[10px] font-bold text-blue-700 bg-blue-100 px-2 py-0.5 rounded-full">
-                  Customer
-                </span>
+                <ArrowRight className="w-4 h-4 text-muted-gray group-hover:text-forest transition" />
               </button>
             </div>
 

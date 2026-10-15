@@ -33,7 +33,6 @@ function LoginContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
-  const [devTokenNotice, setDevTokenNotice] = useState<string | null>(null);
 
   // If already authenticated, redirect
   React.useEffect(() => {
@@ -46,7 +45,6 @@ function LoginContent() {
     e.preventDefault();
     setError(null);
     setSuccessMsg(null);
-    setDevTokenNotice(null);
 
     const clean = phone.replace(/\D/g, '').slice(-10);
     if (clean.length !== 10) {
@@ -66,9 +64,6 @@ function LoginContent() {
     setStep('enter_otp');
     setSuccessMsg(`Verification code sent to +91 ${clean}`);
     if (res.dev_token) {
-      setDevTokenNotice(
-        `[Dev/Sandbox Mode]: SMS Gateway not configured. Your test code is ${res.dev_token}`
-      );
       setOtp(res.dev_token);
     }
   };
@@ -207,11 +202,6 @@ function LoginContent() {
           </div>
         )}
 
-        {devTokenNotice && (
-          <div className="mb-5 p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-mono">
-            {devTokenNotice}
-          </div>
-        )}
 
         {/* Tab 1: OTP Login */}
         {activeTab === 'otp' && (

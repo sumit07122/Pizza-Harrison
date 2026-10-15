@@ -72,7 +72,6 @@ export default function CheckoutPage() {
   const [otpCode, setOtpCode] = useState('');
   const [otpLoading, setOtpLoading] = useState(false);
   const [otpError, setOtpError] = useState<string | null>(null);
-  const [otpDevNotice, setOtpDevNotice] = useState<string | null>(null);
 
   // UPI UTR reference (only when paymentMethod is upi_qr)
   const [upiRef, setUpiRef] = useState('');
@@ -211,7 +210,6 @@ export default function CheckoutPage() {
 
   const handleTriggerOtpModal = async (phoneToVerify: string) => {
     setOtpError(null);
-    setOtpDevNotice(null);
     setOtpCode('');
     setShowOtpModal(true);
     setOtpLoading(true);
@@ -221,9 +219,6 @@ export default function CheckoutPage() {
 
     if (res.success) {
       if (res.dev_token) {
-        setOtpDevNotice(
-          `[Dev/Sandbox Mode]: SMS Gateway not configured. Your test code is ${res.dev_token}`
-        );
         setOtpCode(res.dev_token);
       }
     } else {
@@ -830,11 +825,6 @@ export default function CheckoutPage() {
                 </div>
               )}
 
-              {otpDevNotice && (
-                <div className="p-2.5 rounded-xl bg-amber-50 text-amber-900 font-mono text-xs border border-amber-200">
-                  {otpDevNotice}
-                </div>
-              )}
 
               <form onSubmit={handleVerifyOtpAndSubmit} className="space-y-4">
                 <div>

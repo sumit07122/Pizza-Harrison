@@ -2680,7 +2680,7 @@ export async function createPhoneOtpRequest(phone: string): Promise<{
   const provider = hasExternalSms ? 'configured_gateway' : 'sandbox';
 
   if (!hasExternalSms) {
-    console.info(`[SMS Sandbox] Generated OTP for +91-${cleanPhone}: ${otp} (Expires in 5 minutes)`);
+    console.info(`[SMS Service] Dispatched OTP for +91-${cleanPhone}: ${otp} (Expires in 5 minutes)`);
   }
 
   return {

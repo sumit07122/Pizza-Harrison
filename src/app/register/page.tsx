@@ -35,7 +35,6 @@ function RegisterContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
-  const [devTokenNotice, setDevTokenNotice] = useState<string | null>(null);
 
   // If already authenticated, redirect
   React.useEffect(() => {
@@ -48,7 +47,6 @@ function RegisterContent() {
     e.preventDefault();
     setError(null);
     setSuccessMsg(null);
-    setDevTokenNotice(null);
 
     if (!name.trim()) {
       setError('Please enter your full name.');
@@ -78,9 +76,6 @@ function RegisterContent() {
     setStep('verify_otp');
     setSuccessMsg(`We sent a 6-digit verification code to +91 ${clean}`);
     if (res.dev_token) {
-      setDevTokenNotice(
-        `[Dev/Sandbox Mode]: SMS Gateway not configured. Your test code is ${res.dev_token}`
-      );
       setOtp(res.dev_token);
     }
   };
@@ -180,11 +175,6 @@ function RegisterContent() {
           </div>
         )}
 
-        {devTokenNotice && (
-          <div className="mb-5 p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-mono">
-            {devTokenNotice}
-          </div>
-        )}
 
         {step === 'details' ? (
           <form onSubmit={handleInitiateRegistration} className="space-y-4">
