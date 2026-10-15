@@ -150,10 +150,24 @@ export async function fetchProductBySlug(slug: string): Promise<Product | null> 
 }
 
 export async function fetchCrustOptions(): Promise<CrustOption[]> {
+  const supabase = getSupabaseServerClient();
+  if (supabase) {
+    try {
+      const { data, error } = await supabase.from('crust_options').select('*').eq('is_available', true);
+      if (!error && data && data.length > 0) return data;
+    } catch (e) {}
+  }
   return memoryStore.crusts.filter((c) => c.is_available);
 }
 
 export async function fetchAddons(): Promise<Addon[]> {
+  const supabase = getSupabaseServerClient();
+  if (supabase) {
+    try {
+      const { data, error } = await supabase.from('addons').select('*').eq('is_available', true);
+      if (!error && data && data.length > 0) return data;
+    } catch (e) {}
+  }
   return memoryStore.addons.filter((a) => a.is_available);
 }
 
@@ -601,6 +615,18 @@ export async function fetchOrderByNumber(
 }
 
 export async function fetchAllOrdersAdmin(): Promise<Order[]> {
+  const supabase = getSupabaseServerClient();
+  if (supabase) {
+    try {
+      const { data, error } = await supabase
+        .from('orders')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (!error && data && data.length > 0) {
+        return data as unknown as Order[];
+      }
+    } catch (e) {}
+  }
   return memoryStore.orders;
 }
 
@@ -633,6 +659,22 @@ export async function updateOrderStatus(
 
   order.status = newStatus;
   order.updated_at = new Date().toISOString();
+
+  const supabase = getSupabaseServerClient();
+  if (supabase) {
+    try {
+      await supabase
+        .from('orders')
+        .update({
+          status: newStatus,
+          payment_status: order.payment_status,
+          updated_at: order.updated_at,
+        })
+        .or(`id.eq.${order.id},order_number.eq.${order.order_number}`);
+    } catch (e) {
+      console.warn('Supabase status update error:', e);
+    }
+  }
 
   if (newStatus === 'completed') {
     if (order.payment_method === 'cod') {
@@ -703,11 +745,42 @@ export async function createTableBooking(
     updated_at: new Date().toISOString(),
   };
 
+  const supabase = getSupabaseServerClient();
+  if (supabase) {
+    try {
+      await supabase.from('bookings').insert({
+        id: newBooking.id,
+        booking_reference: newBooking.booking_reference,
+        customer_name: newBooking.customer_name,
+        customer_phone: newBooking.customer_phone,
+        customer_email: newBooking.customer_email || null,
+        branch: newBooking.branch,
+        guest_count: newBooking.guest_count,
+        booking_date: newBooking.booking_date,
+        booking_time: newBooking.booking_time,
+        seating_preference: newBooking.seating_preference || 'indoor_ac',
+        special_requests: newBooking.special_requests || null,
+        status: newBooking.status,
+        created_at: newBooking.created_at,
+        updated_at: newBooking.updated_at,
+      });
+    } catch (e) {
+      console.warn('Supabase booking write error:', e);
+    }
+  }
+
   memoryStore.bookings.unshift(newBooking);
   return { success: true, booking: newBooking };
 }
 
 export async function fetchAllBookingsAdmin(): Promise<Booking[]> {
+  const supabase = getSupabaseServerClient();
+  if (supabase) {
+    try {
+      const { data, error } = await supabase.from('bookings').select('*').order('created_at', { ascending: false });
+      if (!error && data && data.length > 0) return data as unknown as Booking[];
+    } catch (e) {}
+  }
   return memoryStore.bookings;
 }
 
@@ -722,6 +795,22 @@ export async function updateBookingStatus(
   booking.status = newStatus;
   if (staffNotes) booking.staff_notes = staffNotes;
   booking.updated_at = new Date().toISOString();
+
+  const supabase = getSupabaseServerClient();
+  if (supabase) {
+    try {
+      await supabase
+        .from('bookings')
+        .update({
+          status: newStatus,
+          staff_notes: staffNotes || booking.staff_notes || null,
+          updated_at: booking.updated_at,
+        })
+        .or(`id.eq.${bookingId},booking_reference.eq.${bookingId}`);
+    } catch (e) {
+      console.warn('Supabase booking status update error:', e);
+    }
+  }
 
   return { success: true, booking };
 }
@@ -2327,6 +2416,23 @@ export async function createCustomerAccount(data: {
     updated_at: new Date().toISOString(),
   };
 
+  const supabase = getSupabaseServerClient();
+  if (supabase) {
+    try {
+      await supabase.from('customers').insert({
+        id: newCustomer.id,
+        phone: newCustomer.phone,
+        email: newCustomer.email || null,
+        full_name: newCustomer.full_name,
+        password_hash: newCustomer.password_hash || null,
+        created_at: newCustomer.created_at,
+        updated_at: newCustomer.updated_at,
+      });
+    } catch (e) {
+      console.warn('Supabase customer write error:', e);
+    }
+  }
+
   memoryStore.customers.unshift(newCustomer);
 
   addAuditLogEntry({
@@ -2385,6 +2491,19 @@ export async function updateCustomerProfile(
     customer.email = data.email.trim() || undefined;
   }
   customer.updated_at = new Date().toISOString();
+
+  const supabase = getSupabaseServerClient();
+  if (supabase) {
+    try {
+      await supabase.from('customers').update({
+        full_name: customer.full_name,
+        email: customer.email || null,
+        updated_at: customer.updated_at,
+      }).eq('id', customerId);
+    } catch (e) {
+      console.warn('Supabase profile update fallback:', e);
+    }
+  }
 
   return { success: true, customer: JSON.parse(JSON.stringify(customer)) };
 }
